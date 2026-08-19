@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRoles;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -23,7 +24,8 @@ describe('Passenger Registration', function () {
         $data = [
             'name' => 'Pasajero de Prueba',
             'email' => 'pasajero@smartbus.com',
-            'password' => 'password123',
+            'password' => 'N7v!qL2#rX9@kP4',
+            'password_confirmation' => 'N7v!qL2#rX9@kP4',
         ];
 
         $response = postJson('/api/register/passenger', $data);
@@ -179,7 +181,7 @@ describe('Protected Routes (Sanctum)', function () {
     });
 });
 
-describe('Internationalization (i18n)', function () {
+describe('Internationalization (Locale)', function () {
 
     it('returns validation errors in Spanish when Accept-Language header is sent', function () {
         $response = postJson('/api/login', [], [
@@ -195,5 +197,76 @@ describe('Internationalization (i18n)', function () {
 
         $response->assertStatus(422)
             ->assertJsonPath('errors.email.0', 'The email field is required.');
+    });
+});
+
+describe('Tokens Expiration by Role', function () {
+
+    beforeEach(function () {
+        // Ensure that the roles exist for this test suite
+        Role::firstOrCreate(['name' => UserRoles::COMPANY_ADMIN->value, 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => UserRoles::DRIVER->value, 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => UserRoles::PASSENGER->value, 'guard_name' => 'web']);
+
+        // Freeze time to ensure consistent token expiration checks
+        $this->freezeTime();
+    });
+
+    it('assigns a 30-day expiration to passengers', function () {
+        $user = User::factory()->create([
+            'email' => 'passenger_exp@smartbus.com',
+            'password' => bcrypt('password123'),
+        ]);
+        $user->assignRole(UserRoles::PASSENGER->value);
+
+        postJson('/api/login', [
+            'email' => 'passenger_exp@smartbus.com',
+            'password' => 'password123',
+        ]);
+
+        $token = $user->tokens()->first();
+
+        // We check that the token's expires_at is not null and that the difference in days is 30
+        expect($token->expires_at)->not->toBeNull();
+        expect($token->expires_at->toDateTimeString())
+            ->toBe(now()->addDays(30)->toDateTimeString());
+    });
+
+    it('assigns a 14-hour expiration to drivers', function () {
+        $user = User::factory()->create([
+            'email' => 'driver_exp@smartbus.com',
+            'password' => bcrypt('password123'),
+        ]);
+        $user->assignRole(UserRoles::DRIVER->value);
+
+        postJson('/api/login', [
+            'email' => 'driver_exp@smartbus.com',
+            'password' => 'password123',
+        ]);
+
+        $token = $user->tokens()->first();
+
+        expect($token->expires_at)->not->toBeNull();
+        expect($token->expires_at->toDateTimeString())
+            ->toBe(now()->addDays(14)->toDateTimeString());
+    });
+
+    it('assigns an 8-hour expiration to company admins', function () {
+        $user = User::factory()->create([
+            'email' => 'admin_exp@smartbus.com',
+            'password' => bcrypt('password123'),
+        ]);
+        $user->assignRole(UserRoles::COMPANY_ADMIN->value);
+
+        postJson('/api/login', [
+            'email' => 'admin_exp@smartbus.com',
+            'password' => 'password123',
+        ]);
+
+        $token = $user->tokens()->first();
+
+        expect($token->expires_at)->not->toBeNull();
+        expect($token->expires_at->toDateTimeString())
+            ->toBe(now()->addDays(8)->toDateTimeString());
     });
 });

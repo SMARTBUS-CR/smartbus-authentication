@@ -4,29 +4,29 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRoles;
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function registerPassenger(Request $request)
+    public function registerPassenger(RegisterRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-        ]);
+        $data = $request->validated();
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
         ]);
 
         $user->assignRole(UserRoles::PASSENGER);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $expiresAt = $this->getTokenExpirationForUser($user);
+        $deviceName = $request->header('User-Agent', 'auth_token');
+        $token = $user->createToken($deviceName, ['*'], $expiresAt)->plainTextToken;
 
         return response()->json([
             'access_token' => $token,
@@ -41,8 +41,9 @@ class AuthController extends Controller
 
         $user->tokens()->delete(); // Delete all previous tokens
 
+        $expiresAt = $this->getTokenExpirationForUser($user);
         $deviceName = $request->header('User-Agent', 'auth_token');
-        $token = $user->createToken($deviceName)->plainTextToken;
+        $token = $user->createToken($deviceName, ['*'], $expiresAt)->plainTextToken;
 
         return response()->json([
             'access_token' => $token,
@@ -56,5 +57,15 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Sesión cerrada correctamente']);
+    }
+
+    private function getTokenExpirationForUser(User $user): Carbon
+    {
+        return match (true) {
+            $user->hasRole(UserRoles::SUPER_ADMIN) => now()->addHours(2),
+            $user->hasRole(UserRoles::COMPANY_ADMIN) => now()->addHours(8),
+            $user->hasRole(UserRoles::DRIVER) => now()->addHours(14),
+            default => now()->addDays(30),
+        };
     }
 }
