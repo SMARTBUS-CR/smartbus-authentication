@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRoles;
+use App\Http\Requests\LoginRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -23,7 +24,7 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        $user->assignRole('passenger');
+        $user->assignRole(UserRoles::PASSENGER);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -34,23 +35,14 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+        $user = $request->authenticate();
 
-        $user = User::where('email', $request->email)->first();
+        $user->tokens()->delete(); // Delete all previous tokens
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Las credenciales proporcionadas son incorrectas.'],
-            ]);
-        }
-
-        // It can be named according to the device if sent in the request
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $deviceName = $request->header('User-Agent', 'auth_token');
+        $token = $user->createToken($deviceName)->plainTextToken;
 
         return response()->json([
             'access_token' => $token,

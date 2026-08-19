@@ -48,7 +48,7 @@ class UserFactory extends Factory
     public function withRole(UserRoles $role = UserRoles::PASSENGER): static
     {
         return $this->afterCreating(function (User $user) use ($role) {
-            if (!$user->hasRole($role)) {
+            if (! $user->hasRole($role)) {
                 $role = app(Role::class)->findOrCreate($role->value, 'web');
                 $user->assignRole($role);
             }

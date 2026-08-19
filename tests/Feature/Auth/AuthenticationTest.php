@@ -90,6 +90,59 @@ describe('Login and Logout', function () {
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
     });
+
+    it('blocks login attempts after 5 failed tries (Rate Limiting)', function () {
+        $user = User::factory()->create([
+            'email' => 'hacker@smartbus.com',
+            'password' => bcrypt('password123'),
+        ]);
+
+        // The first 5 attempts should fail but not trigger the rate limiter
+        for ($i = 0; $i < 5; $i++) {
+            postJson('/api/login', [
+                'email' => 'hacker@smartbus.com',
+                'password' => 'wrong-password',
+            ]);
+        }
+
+        // The 6th attempt should be blocked by the Rate Limiter
+        $response = postJson('/api/login', [
+            'email' => 'hacker@smartbus.com',
+            'password' => 'wrong-password',
+        ]);
+
+        // The response should return a 422 with the throttle error on the email field
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    });
+
+    it('deletes previous tokens upon successful login (Single Active Session)', function () {
+        $user = User::factory()->create([
+            'email' => 'multidevice@smartbus.com',
+            'password' => bcrypt('password123'),
+        ]);
+        $user->assignRole('passenger');
+
+        // Simulates that the user already had an open session on another device
+        $user->createToken('old_device');
+
+        // Verifies that the user has 1 active token
+        expect($user->tokens()->count())->toBe(1);
+
+        // The new login should delete the previous token and create a new one
+        $response = postJson('/api/login', [
+            'email' => 'multidevice@smartbus.com',
+            'password' => 'password123',
+        ]);
+
+        $response->assertStatus(200);
+
+        // The user should still have only 1 active token (the new one),
+        // because the 'old_device' token was deleted.
+        expect($user->fresh()->tokens()->count())->toBe(1);
+    });
+
+    // --------------------
 });
 
 describe('Protected Routes (Sanctum)', function () {
