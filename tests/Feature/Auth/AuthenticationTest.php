@@ -15,7 +15,10 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // Initial setup: Create the necessary role before each test
-    Role::firstOrCreate(['name' => 'passenger', 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRoles::PASSENGER, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRoles::SUPER_ADMIN, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRoles::COMPANY_ADMIN, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRoles::DRIVER, 'guard_name' => 'web']);
 });
 
 describe('Passenger Registration', function () {
@@ -44,7 +47,7 @@ describe('Passenger Registration', function () {
 
         // Check that the user has the 'passenger' role
         $user = User::where('email', 'pasajero@smartbus.com')->first();
-        expect($user->hasRole('passenger'))->toBeTrue();
+        expect($user->hasRole(UserRoles::PASSENGER))->toBeTrue();
     });
 
     it('rejects registration when required data is missing', function () {
@@ -62,7 +65,7 @@ describe('Login and Logout', function () {
             'email' => 'login@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole('passenger');
+        $user->assignRole(UserRoles::PASSENGER);
 
         $response = postJson('/api/login', [
             'email' => 'login@smartbus.com',
@@ -75,7 +78,7 @@ describe('Login and Logout', function () {
                 'token_type',
                 'roles',
             ])
-            ->assertJsonPath('roles.0', 'passenger');
+            ->assertJsonPath('roles.0', UserRoles::PASSENGER);
     });
 
     it('rejects login with invalid credentials', function () {
@@ -123,7 +126,7 @@ describe('Login and Logout', function () {
             'email' => 'multidevice@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole('passenger');
+        $user->assignRole(UserRoles::PASSENGER);
 
         // Simulates that the user already had an open session on another device
         $user->createToken('old_device');
@@ -151,7 +154,7 @@ describe('Protected Routes (Sanctum)', function () {
 
     it('returns the authenticated user information', function () {
         $user = User::factory()->create();
-        $user->assignRole('passenger');
+        $user->assignRole(UserRoles::PASSENGER);
 
         // Simulate authentication with Sanctum
         Sanctum::actingAs($user, ['*']);
@@ -160,7 +163,7 @@ describe('Protected Routes (Sanctum)', function () {
 
         $response->assertStatus(200)
             ->assertJsonPath('user.email', $user->email)
-            ->assertJsonPath('roles.0', 'passenger');
+            ->assertJsonPath('roles.0', UserRoles::PASSENGER);
     });
 
     it('blocks access to /api/user when no token is provided', function () {
@@ -203,11 +206,6 @@ describe('Internationalization (Locale)', function () {
 describe('Tokens Expiration by Role', function () {
 
     beforeEach(function () {
-        // Ensure that the roles exist for this test suite
-        Role::firstOrCreate(['name' => UserRoles::COMPANY_ADMIN->value, 'guard_name' => 'web']);
-        Role::firstOrCreate(['name' => UserRoles::DRIVER->value, 'guard_name' => 'web']);
-        Role::firstOrCreate(['name' => UserRoles::PASSENGER->value, 'guard_name' => 'web']);
-
         // Freeze time to ensure consistent token expiration checks
         $this->freezeTime();
     });
@@ -217,7 +215,7 @@ describe('Tokens Expiration by Role', function () {
             'email' => 'passenger_exp@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::PASSENGER->value);
+        $user->assignRole(UserRoles::PASSENGER);
 
         postJson('/api/login', [
             'email' => 'passenger_exp@smartbus.com',
@@ -237,7 +235,7 @@ describe('Tokens Expiration by Role', function () {
             'email' => 'driver_exp@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::DRIVER->value);
+        $user->assignRole(UserRoles::DRIVER);
 
         postJson('/api/login', [
             'email' => 'driver_exp@smartbus.com',
@@ -248,7 +246,7 @@ describe('Tokens Expiration by Role', function () {
 
         expect($token->expires_at)->not->toBeNull();
         expect($token->expires_at->toDateTimeString())
-            ->toBe(now()->addDays(14)->toDateTimeString());
+            ->toBe(now()->addHours(14)->toDateTimeString());
     });
 
     it('assigns an 8-hour expiration to company admins', function () {
@@ -256,7 +254,7 @@ describe('Tokens Expiration by Role', function () {
             'email' => 'admin_exp@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::COMPANY_ADMIN->value);
+        $user->assignRole(UserRoles::COMPANY_ADMIN);
 
         postJson('/api/login', [
             'email' => 'admin_exp@smartbus.com',
@@ -267,6 +265,25 @@ describe('Tokens Expiration by Role', function () {
 
         expect($token->expires_at)->not->toBeNull();
         expect($token->expires_at->toDateTimeString())
-            ->toBe(now()->addDays(8)->toDateTimeString());
+            ->toBe(now()->addHours(8)->toDateTimeString());
+    });
+
+    it('assigns an 2-hour expiration to super admins', function () {
+        $user = User::factory()->create([
+            'email' => 'super_admin_exp@smartbus.com',
+            'password' => bcrypt('password123'),
+        ]);
+        $user->assignRole(UserRoles::SUPER_ADMIN);
+
+        postJson('/api/login', [
+            'email' => 'super_admin_exp@smartbus.com',
+            'password' => 'password123',
+        ]);
+
+        $token = $user->tokens()->first();
+
+        expect($token->expires_at)->not->toBeNull();
+        expect($token->expires_at->toDateTimeString())
+            ->toBe(now()->addHours(2)->toDateTimeString());
     });
 });
