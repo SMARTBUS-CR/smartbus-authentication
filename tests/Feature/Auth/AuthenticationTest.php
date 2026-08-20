@@ -7,11 +7,12 @@ use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 
 use function Pest\Laravel\assertDatabaseHas;
+use function Pest\Laravel\freezeTime;
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\postJson;
 
 // Ensures that the database is refreshed for each test
-uses(RefreshDatabase::class);
+pest()->use(RefreshDatabase::class);
 
 beforeEach(function () {
     // Initial setup: Create the necessary role before each test
@@ -31,9 +32,9 @@ describe('Passenger Registration', function () {
             'password_confirmation' => 'N7v!qL2#rX9@kP4',
         ];
 
-        $response = postJson('/api/register/passenger', $data);
+        $response = postJson(route('register.passenger'), $data);
 
-        $response->assertStatus(201)
+        $response->assertCreated()
             ->assertJsonStructure([
                 'access_token',
                 'token_type',
@@ -51,9 +52,9 @@ describe('Passenger Registration', function () {
     });
 
     it('rejects registration when required data is missing', function () {
-        $response = postJson('/api/register/passenger', []);
+        $response = postJson(route('register.passenger'), []);
 
-        $response->assertStatus(422)
+        $response->assertUnprocessable()
             ->assertJsonValidationErrors(['name', 'email', 'password']);
     });
 });
@@ -67,12 +68,12 @@ describe('Login and Logout', function () {
         ]);
         $user->assignRole(UserRoles::PASSENGER);
 
-        $response = postJson('/api/login', [
+        $response = postJson(route('login'), [
             'email' => 'login@smartbus.com',
             'password' => 'password123',
         ]);
 
-        $response->assertStatus(200)
+        $response->assertSuccessful()
             ->assertJsonStructure([
                 'access_token',
                 'token_type',
@@ -87,12 +88,12 @@ describe('Login and Logout', function () {
             'password' => bcrypt('password123'),
         ]);
 
-        $response = postJson('/api/login', [
+        $response = postJson(route('login'), [
             'email' => 'login@smartbus.com',
             'password' => 'contraseña-incorrecta',
         ]);
 
-        $response->assertStatus(422)
+        $response->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
     });
 
@@ -104,20 +105,20 @@ describe('Login and Logout', function () {
 
         // The first 5 attempts should fail but not trigger the rate limiter
         for ($i = 0; $i < 5; $i++) {
-            postJson('/api/login', [
+            postJson(route('login'), [
                 'email' => 'hacker@smartbus.com',
                 'password' => 'wrong-password',
             ]);
         }
 
         // The 6th attempt should be blocked by the Rate Limiter
-        $response = postJson('/api/login', [
+        $response = postJson(route('login'), [
             'email' => 'hacker@smartbus.com',
             'password' => 'wrong-password',
         ]);
 
         // The response should return a 422 with the throttle error on the email field
-        $response->assertStatus(422)
+        $response->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
     });
 
@@ -135,12 +136,12 @@ describe('Login and Logout', function () {
         expect($user->tokens()->count())->toBe(1);
 
         // The new login should delete the previous token and create a new one
-        $response = postJson('/api/login', [
+        $response = postJson(route('login'), [
             'email' => 'multidevice@smartbus.com',
             'password' => 'password123',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertSuccessful();
 
         // The user should still have only 1 active token (the new one),
         // because the 'old_device' token was deleted.
@@ -159,17 +160,17 @@ describe('Protected Routes (Sanctum)', function () {
         // Simulate authentication with Sanctum
         Sanctum::actingAs($user, ['*']);
 
-        $response = getJson('/api/user');
+        $response = getJson(route('user'));
 
-        $response->assertStatus(200)
+        $response->assertSuccessful()
             ->assertJsonPath('user.email', $user->email)
             ->assertJsonPath('roles.0', UserRoles::PASSENGER);
     });
 
-    it('blocks access to /api/user when no token is provided', function () {
-        $response = getJson('/api/user');
+    it('blocks access to user route when no token is provided', function () {
+        $response = getJson(route('user'));
 
-        $response->assertStatus(401);
+        $response->assertUnauthorized();
     });
 
     it('allows the user to log out successfully', function () {
@@ -177,38 +178,35 @@ describe('Protected Routes (Sanctum)', function () {
 
         Sanctum::actingAs($user, ['*']);
 
-        $response = postJson('/api/logout');
+        $response = postJson(route('logout'));
 
-        $response->assertStatus(200)
-            ->assertJson(['message' => 'Sesión cerrada correctamente']);
+        $response->assertSuccessful()
+            ->assertJson(['message' => __('auth.logged_out')]);
     });
 });
 
 describe('Internationalization (Locale)', function () {
 
     it('returns validation errors in Spanish when Accept-Language header is sent', function () {
-        $response = postJson('/api/login', [], [
+        $response = postJson(route('login'), [], [
             'Accept-Language' => 'es',
         ]);
 
-        $response->assertStatus(422)
+        $response->assertUnprocessable()
             ->assertJsonPath('errors.email.0', 'El campo correo electrónico es obligatorio.');
     });
 
     it('returns validation errors in English when no Accept-Language header is sent', function () {
-        $response = postJson('/api/login');
+        $response = postJson(route('login'));
 
-        $response->assertStatus(422)
+        $response->assertUnprocessable()
             ->assertJsonPath('errors.email.0', 'The email field is required.');
     });
 });
 
 describe('Tokens Expiration by Role', function () {
 
-    beforeEach(function () {
-        // Freeze time to ensure consistent token expiration checks
-        $this->freezeTime();
-    });
+    beforeEach(fn () => freezeTime());
 
     it('assigns a 30-day expiration to passengers', function () {
         $user = User::factory()->create([
@@ -217,7 +215,7 @@ describe('Tokens Expiration by Role', function () {
         ]);
         $user->assignRole(UserRoles::PASSENGER);
 
-        postJson('/api/login', [
+        postJson(route('login'), [
             'email' => 'passenger_exp@smartbus.com',
             'password' => 'password123',
         ]);
@@ -237,16 +235,15 @@ describe('Tokens Expiration by Role', function () {
         ]);
         $user->assignRole(UserRoles::DRIVER);
 
-        postJson('/api/login', [
+        postJson(route('login'), [
             'email' => 'driver_exp@smartbus.com',
             'password' => 'password123',
         ]);
 
         $token = $user->tokens()->first();
 
-        expect($token->expires_at)->not->toBeNull();
-        expect($token->expires_at->toDateTimeString())
-            ->toBe(now()->addHours(14)->toDateTimeString());
+        expect($token->expires_at)->not->toBeNull()
+            ->and($token->expires_at->toDateTimeString())->toBe(now()->addHours(14)->toDateTimeString());
     });
 
     it('assigns an 8-hour expiration to company admins', function () {
@@ -256,16 +253,15 @@ describe('Tokens Expiration by Role', function () {
         ]);
         $user->assignRole(UserRoles::COMPANY_ADMIN);
 
-        postJson('/api/login', [
+        postJson(route('login'), [
             'email' => 'admin_exp@smartbus.com',
             'password' => 'password123',
         ]);
 
         $token = $user->tokens()->first();
 
-        expect($token->expires_at)->not->toBeNull();
-        expect($token->expires_at->toDateTimeString())
-            ->toBe(now()->addHours(8)->toDateTimeString());
+        expect($token->expires_at)->not->toBeNull()
+            ->and($token->expires_at->toDateTimeString())->toBe(now()->addHours(8)->toDateTimeString());
     });
 
     it('assigns an 2-hour expiration to super admins', function () {
@@ -275,15 +271,14 @@ describe('Tokens Expiration by Role', function () {
         ]);
         $user->assignRole(UserRoles::SUPER_ADMIN);
 
-        postJson('/api/login', [
+        postJson(route('login'), [
             'email' => 'super_admin_exp@smartbus.com',
             'password' => 'password123',
         ]);
 
         $token = $user->tokens()->first();
 
-        expect($token->expires_at)->not->toBeNull();
-        expect($token->expires_at->toDateTimeString())
-            ->toBe(now()->addHours(2)->toDateTimeString());
+        expect($token->expires_at)->not->toBeNull()
+            ->and($token->expires_at->toDateTimeString())->toBe(now()->addHours(2)->toDateTimeString());
     });
 });

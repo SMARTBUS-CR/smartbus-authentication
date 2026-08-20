@@ -56,7 +56,7 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json(['message' => 'Sesión cerrada correctamente']);
+        return response()->json(['message' => __('auth.logged_out')]);
     }
 
     private function getTokenExpirationForUser(User $user): Carbon
