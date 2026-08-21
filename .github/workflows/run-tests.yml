@@ -1,0 +1,53 @@
+name: CI/CD - Run Laravel Tests
+
+on:
+  workflow_run:
+    workflows: ["CI/CD - Fix Code Style"]
+    types: [completed]
+
+# Stop concurrent runs of the same workflow on the same branch to prevent conflicts and redundant deployments
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  laravel-tests:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Run Laravel Tests
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: sqlite
+      DB_DATABASE: 'database/database.sqlite'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          coverage: xdebug
+
+      - name: Install Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Directory Permissions
+        run: sudo chmod -R 777 storage bootstrap/cache
+
+      - name: Run CI Bootstrap
+        run: composer run ci
+
+      - name: Run Tests
+        run: php artisan test --ci --parallel --compact
+
+        
