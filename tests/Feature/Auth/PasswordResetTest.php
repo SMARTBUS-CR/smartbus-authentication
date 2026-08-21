@@ -118,6 +118,33 @@ describe('Password Reset (OTP)', function () {
             ->assertJsonPath('message', 'Contraseña actualizada correctamente.');
     });
 
+    it('rejects reset attempts when no token exists for the email in both locales', function () {
+        $user = User::factory()->create(['email' => 'missing_token@smartbus.com']);
+        $validPassword = 'P9@kX4!vN7#qL2r';
+
+        $responseEn = postJson(route('password.reset'), [
+            'email' => $user->email,
+            'code' => '123456',
+            'password' => $validPassword,
+            'password_confirmation' => $validPassword,
+        ]);
+
+        $responseEn->assertBadRequest()
+            ->assertJsonPath('message', 'The code is invalid or has expired.');
+
+        $responseEs = postJson(route('password.reset'), [
+            'email' => $user->email,
+            'code' => '123456',
+            'password' => $validPassword,
+            'password_confirmation' => $validPassword,
+        ], [
+            'Accept-Language' => 'es',
+        ]);
+
+        $responseEs->assertBadRequest()
+            ->assertJsonPath('message', 'El código es inválido o ha expirado.');
+    });
+
     it('rejects incorrect codes in both locales', function () {
         $user = User::factory()->create(['email' => 'test@smartbus.com']);
 

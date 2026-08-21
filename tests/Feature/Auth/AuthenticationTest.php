@@ -79,7 +79,8 @@ describe('Login and Logout', function () {
                 'token_type',
                 'roles',
             ])
-            ->assertJsonPath('roles.0', UserRoles::PASSENGER);
+            ->assertJsonPath('roles.0.value', UserRoles::PASSENGER->value)
+            ->assertJsonPath('roles.0.label', UserRoles::PASSENGER->label());
     });
 
     it('rejects login with invalid credentials', function () {
@@ -148,7 +149,16 @@ describe('Login and Logout', function () {
         expect($user->fresh()->tokens()->count())->toBe(1);
     });
 
-    // --------------------
+    it('allows the user to log out successfully (protected route)', function () {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user, ['*']);
+
+        $response = postJson(route('logout'));
+
+        $response->assertSuccessful()
+            ->assertJson(['message' => __('auth.logged_out')]);
+    });
 });
 
 describe('Protected Routes (Sanctum)', function () {
@@ -164,24 +174,14 @@ describe('Protected Routes (Sanctum)', function () {
 
         $response->assertSuccessful()
             ->assertJsonPath('user.email', $user->email)
-            ->assertJsonPath('roles.0', UserRoles::PASSENGER);
+            ->assertJsonPath('user.roles.0.value', UserRoles::PASSENGER->value)
+            ->assertJsonPath('user.roles.0.label', UserRoles::PASSENGER->label());
     });
 
     it('blocks access to user route when no token is provided', function () {
         $response = getJson(route('user'));
 
         $response->assertUnauthorized();
-    });
-
-    it('allows the user to log out successfully', function () {
-        $user = User::factory()->create();
-
-        Sanctum::actingAs($user, ['*']);
-
-        $response = postJson(route('logout'));
-
-        $response->assertSuccessful()
-            ->assertJson(['message' => __('auth.logged_out')]);
     });
 });
 

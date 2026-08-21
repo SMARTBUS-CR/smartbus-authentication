@@ -2,27 +2,33 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ResetPasswordRequest;
+use App\Http\Requests\SendResetCodeRequest;
 use App\Mail\ResetPasswordCode;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
+use Dedoc\Scramble\Attributes\Group;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response as HttpStatus;
 
+#[Group(name: 'Password Reset', description: 'Endpoints for password reset functionality.')]
 class PasswordResetController extends Controller
 {
     /**
-     * Step 1: Generate the code and send it via email.
+     * Send Reset Code
+     *
+     * Sends a 6-digit password reset code to the user's email.
+     * The code is valid for 15 minutes.
+     *
+     * @throws ValidationException
      */
-    public function sendResetCode(Request $request)
+    public function sendResetCode(SendResetCodeRequest $request): JsonResponse
     {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-        ]);
-
-        $email = $request->email;
+        $email = $request->validated('email');
         $code = (string) random_int(100000, 999999); // Secure 6-digit code
 
         // Save the hashed code in the database
@@ -45,53 +51,53 @@ class PasswordResetController extends Controller
     }
 
     /**
-     * Step 2: Validate the code and change the password.
+     * Reset Password
+     *
+     * Resets the user's password using the provided reset code.
+     * The code must match the one sent to the user's email and must not be expired.
+     *
+     * @throws ValidationException
      */
-    public function resetPassword(Request $request)
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-            'code' => 'required|string|size:6',
-            'password' => [
-                'required',
-                'confirmed',
-                Password::min(8)  // Minimum length of 8 characters
-                    ->letters()         // Require at least one letter
-                    ->mixedCase()       // Require at least one uppercase and one lowercase letter
-                    ->numbers()         // Require at least one number
-                    ->symbols()         // Require at least one symbol
-                    ->uncompromised(),  // Ensure the password is not compromised
-            ],
-        ]);
+        $data = $request->validated();
 
         $resetRequest = DB::table('password_reset_tokens')
-            ->where('email', $request->email)
+            ->where('email', $data['email'])
             ->first();
 
-        // 1. Check if there is a pending reset request for the given email
+        // Check if there is a pending reset request for the given email
         if (! $resetRequest) {
-            return response()->json(['message' => __('passwords.invalid_code')], 400);
+            return response()->json(
+                ['message' => __('passwords.invalid_code')],
+                HttpStatus::HTTP_BAD_REQUEST
+            );
         }
 
-        // 2. Check if the provided code matches the hashed token in the database
-        if (! Hash::check($request->code, $resetRequest->token)) {
-            return response()->json(['message' => __('passwords.incorrect_code')], 400);
+        // Check if the provided code matches the hashed token in the database
+        if (! Hash::check($data['code'], $resetRequest->token)) {
+            return response()->json(
+                ['message' => __('passwords.incorrect_code')],
+                HttpStatus::HTTP_BAD_REQUEST
+            );
         }
 
-        // 3. Check if the code has expired (15 minutes)
+        // Check if the code has expired (15 minutes)
         if (Carbon::parse($resetRequest->created_at)->addMinutes(15)->isPast()) {
-            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
 
-            return response()->json(['message' => __('passwords.code_expired')], 400);
+            return response()->json([
+                'message' => __('passwords.code_expired'),
+            ], HttpStatus::HTTP_BAD_REQUEST);
         }
 
-        // 4. Update the password and delete active access tokens to force a new login
-        $user = User::where('email', $request->email)->first();
-        $user->update(['password' => Hash::make($request->password)]);
+        // Update the password and delete active access tokens to force a new login
+        $user = User::where('email', $data['email'])->first();
+        $user->update(['password' => Hash::make($data['password'])]);
         $user->tokens()->delete();
 
-        // 5. Clear the reset token
-        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+        // Clear the reset token
+        DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
 
         return response()->json([
             'message' => __('passwords.reset'),
