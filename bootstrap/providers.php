@@ -1,9 +1,11 @@
 <?php
 
+use App\EnvKit\EnvKitDebugServiceProvider;
 use App\Providers\AppServiceProvider;
+use App\Providers\EnvKitTrustProxies;
 
 return [
-    App\Providers\EnvKitTrustProxies::class,
+    EnvKitTrustProxies::class,
     AppServiceProvider::class,
-    App\EnvKit\EnvKitDebugServiceProvider::class,
+    EnvKitDebugServiceProvider::class,
 ];

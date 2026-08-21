@@ -9,7 +9,7 @@ use Spatie\Permission\Models\Role;
 
 pest()->use(RefreshDatabase::class);
 
-describe("RoleResource", function () {
+describe('RoleResource', function () {
 
     it('returns the role value and label', function () {
         $resource = RoleResource::make(new Role(['name' => UserRoles::SUPER_ADMIN->value]));

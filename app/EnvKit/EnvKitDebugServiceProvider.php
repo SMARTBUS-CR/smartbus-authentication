@@ -16,6 +16,8 @@ namespace App\EnvKit;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
@@ -44,7 +46,7 @@ class EnvKitDebugServiceProvider extends ServiceProvider
         if (PHP_SAPI !== 'cli') {
             $method = isset($_SERVER['REQUEST_METHOD']) ? (string) $_SERVER['REQUEST_METHOD'] : '';
             $uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
-            $line = trim($method . ' ' . $uri);
+            $line = trim($method.' '.$uri);
             if ($line !== '') {
                 $client->setRequest($line);
             }
@@ -74,7 +76,7 @@ class EnvKitDebugServiceProvider extends ServiceProvider
             // to plumb it through env.
             $root = function_exists('base_path') ? base_path() : getcwd();
             $key = substr(sha1(strtolower(rtrim(str_replace('\\', '/', (string) $root), '/'))), 0, 16);
-            $data = @file_get_contents(rtrim($dir, '/\\') . '/' . $key . '.json');
+            $data = @file_get_contents(rtrim($dir, '/\\').'/'.$key.'.json');
             if ($data !== false) {
                 $parsed = json_decode($data, true);
                 if (is_array($parsed) && isset($parsed['site'])) {
@@ -92,8 +94,8 @@ class EnvKitDebugServiceProvider extends ServiceProvider
     /** Intercept dump()/dd() via VarDumper; render to HTML for the window. */
     private function hookDumps(Client $client): void
     {
-        $cloner = new VarCloner();
-        $htmlDumper = new HtmlDumper();
+        $cloner = new VarCloner;
+        $htmlDumper = new HtmlDumper;
         $passthrough = $client->passthrough();
 
         VarDumper::setHandler(function ($var) use ($client, $cloner, $htmlDumper, $passthrough): void {
@@ -211,19 +213,19 @@ class EnvKitDebugServiceProvider extends ServiceProvider
     private function hookJobs(Client $client): void
     {
         try {
-            \Illuminate\Support\Facades\Queue::before(static function ($e) use ($client): void {
+            Queue::before(static function ($e) use ($client): void {
                 $client->record('job', [
                     'label' => self::jobName($e),
                     'data' => ['state' => 'processing', 'name' => self::jobName($e)],
                 ]);
             });
-            \Illuminate\Support\Facades\Queue::after(static function ($e) use ($client): void {
+            Queue::after(static function ($e) use ($client): void {
                 $client->record('job', [
                     'label' => self::jobName($e),
                     'data' => ['state' => 'processed', 'name' => self::jobName($e)],
                 ]);
             });
-            \Illuminate\Support\Facades\Queue::failing(static function ($e) use ($client): void {
+            Queue::failing(static function ($e) use ($client): void {
                 $client->record('job', [
                     'label' => self::jobName($e),
                     'data' => ['state' => 'failed', 'name' => self::jobName($e)],
@@ -253,7 +255,7 @@ class EnvKitDebugServiceProvider extends ServiceProvider
         // `Http` is a facade, so method_exists() on the facade CLASS is always
         // false (the method lives on the resolved Factory, reached via
         // __callStatic) — check the facade root instead, or HTTP never captures.
-        $factory = \Illuminate\Support\Facades\Http::getFacadeRoot();
+        $factory = Http::getFacadeRoot();
         if (! is_object($factory) || ! method_exists($factory, 'globalResponseMiddleware')) {
             return;
         }
@@ -265,7 +267,7 @@ class EnvKitDebugServiceProvider extends ServiceProvider
                     $method = $req ? $req->getMethod() : '';
                     $ms = $response->transferStats ? (float) $response->transferStats->getTransferTime() * 1000 : null;
                     $client->record('http', [
-                        'label' => trim($method . ' ' . $uri),
+                        'label' => trim($method.' '.$uri),
                         'durationMs' => $ms !== null ? (int) round($ms) : null,
                         'data' => ['method' => $method, 'uri' => $uri, 'status' => $response->status()],
                     ]);

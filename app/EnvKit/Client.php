@@ -56,7 +56,7 @@ final class Client
         $root = function_exists('base_path') ? base_path() : getcwd();
         $norm = strtolower(rtrim(str_replace('\\', '/', (string) $root), '/'));
         $key = substr(sha1($norm), 0, 16);
-        $file = rtrim($dir, '/\\') . '/' . $key . '.json';
+        $file = rtrim($dir, '/\\').'/'.$key.'.json';
         $data = @file_get_contents($file);
         if ($data !== false) {
             $parsed = json_decode($data, true);
@@ -145,6 +145,7 @@ final class Client
         $token = getenv('ENVKIT_DEBUG_TOKEN') ?: '';
         if ($url === false || $url === '') {
             $this->buffer = [];
+
             return;
         }
         $events = $this->buffer;
@@ -170,7 +171,7 @@ final class Client
                 CURLOPT_POSTFIELDS => $body,
                 CURLOPT_HTTPHEADER => [
                     'Content-Type: application/json',
-                    'X-EnvKit-Token: ' . $token,
+                    'X-EnvKit-Token: '.$token,
                 ],
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => 2,
