@@ -3,20 +3,20 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\JsonApi\JsonApiResource;
 
-class UserResource extends JsonResource
+class UserResource extends JsonApiResource
 {
     /**
+     * Get the resource's attributes.
+     *
      * @return array<string, mixed>
      */
-    public function toArray(Request $request): array
+    public function toAttributes(Request $request): array
     {
         return [
-            'id' => $this->resource->id,
             'name' => $this->resource->name,
             'email' => $this->resource->email,
-            'roles' => RoleResource::collection($this->resource->roles),
 
             /**
              * User's permissions.
@@ -25,7 +25,24 @@ class UserResource extends JsonResource
              *
              * @see User::getAllPermissions()
              */
-            'permissions' => $this->resource->getAllPermissions()->pluck('name')->values(),
+            'permissions' => $this->resource
+                ->getAllPermissions()
+                ->pluck('name')
+                ->values(),
+        ];
+    }
+
+    public $relationships = [
+        'roles',
+    ];
+
+    /**
+     * Get the resource's relationships.
+     */
+    public function toRelationships(Request $request): array
+    {
+        return [
+            'roles' => fn () => RoleResource::collection($this->whenLoaded('roles')),
         ];
     }
 }

@@ -4,16 +4,16 @@ namespace App\Http\Resources;
 
 use App\Enums\UserRoles;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\JsonApi\JsonApiResource;
 
-class RoleResource extends JsonResource
+class RoleResource extends JsonApiResource
 {
     /**
-     * Transform the resource into an array.
+     * Get the resource's attributes.
      *
      * @return array<string, mixed>
      */
-    public function toArray(Request $request): array
+    public function toAttributes(Request $request): array
     {
         $role = UserRoles::from($this->resource->name);
 

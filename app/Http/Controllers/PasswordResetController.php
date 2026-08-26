@@ -6,8 +6,10 @@ use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\SendResetCodeRequest;
 use App\Mail\ResetPasswordCode;
 use App\Models\User;
+use App\Traits\ApiResponser;
 use Carbon\Carbon;
 use Dedoc\Scramble\Attributes\Group;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,6 +20,8 @@ use Symfony\Component\HttpFoundation\Response as HttpStatus;
 #[Group(name: 'Password Reset', description: 'Endpoints for password reset functionality.')]
 class PasswordResetController extends Controller
 {
+    use ApiResponser;
+
     /**
      * Send Reset Code
      *
@@ -26,6 +30,7 @@ class PasswordResetController extends Controller
      *
      * @throws ValidationException
      */
+    #[Response(status: HttpStatus::HTTP_OK, description: 'Reset code sent successfully.', type: 'array{meta: array{message: string}}')]
     public function sendResetCode(SendResetCodeRequest $request): JsonResponse
     {
         $email = $request->validated('email');
@@ -45,7 +50,7 @@ class PasswordResetController extends Controller
         // Send the code via email
         Mail::to($email)->send(new ResetPasswordCode($code, $user?->name));
 
-        return response()->json([
+        return $this->successResponse([
             'message' => __('passwords.code_sent'),
         ]);
     }
@@ -58,6 +63,8 @@ class PasswordResetController extends Controller
      *
      * @throws ValidationException
      */
+    #[Response(status: HttpStatus::HTTP_OK, description: 'Password reset successfully.', type: 'array{meta: array{message: string}}')]
+    #[Response(status: HttpStatus::HTTP_BAD_REQUEST, description: 'Invalid or expired reset code.', type: 'array{errors: array{status: string, title: string, detail: string}}')]
     public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -68,16 +75,18 @@ class PasswordResetController extends Controller
 
         // Check if there is a pending reset request for the given email
         if (! $resetRequest) {
-            return response()->json(
-                ['message' => __('passwords.invalid_code')],
+            return $this->errorResponse(
+                __('passwords.invalid_code'),
+                __('Invalid Code'),
                 HttpStatus::HTTP_BAD_REQUEST
             );
         }
 
         // Check if the provided code matches the hashed token in the database
         if (! Hash::check($data['code'], $resetRequest->token)) {
-            return response()->json(
-                ['message' => __('passwords.incorrect_code')],
+            return $this->errorResponse(
+                __('passwords.incorrect_code'),
+                __('Incorrect Code'),
                 HttpStatus::HTTP_BAD_REQUEST
             );
         }
@@ -86,9 +95,11 @@ class PasswordResetController extends Controller
         if (Carbon::parse($resetRequest->created_at)->addMinutes(15)->isPast()) {
             DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
 
-            return response()->json([
-                'message' => __('passwords.code_expired'),
-            ], HttpStatus::HTTP_BAD_REQUEST);
+            return $this->errorResponse(
+                __('passwords.code_expired'),
+                __('Code Expired'),
+                HttpStatus::HTTP_BAD_REQUEST
+            );
         }
 
         // Update the password and delete active access tokens to force a new login
@@ -99,7 +110,7 @@ class PasswordResetController extends Controller
         // Clear the reset token
         DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
 
-        return response()->json([
+        return $this->successResponse([
             'message' => __('passwords.reset'),
         ]);
     }

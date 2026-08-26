@@ -52,7 +52,7 @@ return [
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
          */
-        'description' => 'API for SmartBus **Authentication Service**. This service is responsible for handling user authentication, registration, and password management for the SmartBus application.',
+        'description' => 'API for SmartBus **Authentication Service**. This service is responsible for handling user authentication, registration, and password management for the SmartBus application. <br><br> All the endpoints described in this documentation follow the [JSON:API](https://jsonapi.org/) specification for request and response formats.',
     ],
 
     'ui' => [
