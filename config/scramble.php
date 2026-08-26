@@ -105,7 +105,10 @@ return [
      * ],
      * ```
      */
-    'servers' => null,
+    'servers' => [
+        'Prod' => 'https://smartbus-authentication.onrender.com/api',
+        'Local' => 'https://smartbus-authentication-dev.onrender.com/api',
+    ],
 
     /**
      * Determines how Scramble stores the descriptions of enum cases.
