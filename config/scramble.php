@@ -106,8 +106,8 @@ return [
      * ```
      */
     'servers' => [
-        'Prod' => 'https://smartbus-authentication.onrender.com/api',
-        'Local' => 'https://smartbus-authentication-dev.onrender.com/api',
+        'Production' => 'https://smartbus-authentication.onrender.com/api',
+        'Development' => 'https://smartbus-authentication-dev.onrender.com/api',
     ],
 
     /**
