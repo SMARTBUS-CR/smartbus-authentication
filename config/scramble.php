@@ -82,7 +82,8 @@ return [
             'view' => 'scramble::scalar',
             'cdn' => 'https://cdn.jsdelivr.net/npm/@scalar/api-reference',
             'theme' => 'purple', // Default is 'laravel'
-            'proxyUrl' => 'https://proxy.scalar.com',
+            // 'proxyUrl' => 'https://proxy.scalar.com',
+            'proxyUrl' => null,
             'darkMode' => true,
             'showDeveloperTools' => 'never',
             'agent' => ['disabled' => true],
