@@ -13,11 +13,12 @@
 
 **SmartBus Global** es una plataforma integral de transporte público (B2G enfocada en Costa Rica), diseñada para la visualización de autobuses en tiempo real, predicción de llegadas (ETA) y gestión eficiente de rutas.
 
-Este repositorio corresponde al **API Gateway y Autenticación** del proyecto, construido sobre una arquitectura robusta y escalable que orquesta la comunicación de los distintos microservicios.
+Este repositorio corresponde al **Servicio de Autenticación** del proyecto, encargado de la gestión de usuarios, roles y permisos, así como de la seguridad y autenticación de las aplicaciones cliente.
 
 *   **Clientes Frontend:** Aplicación móvil unificada en Flutter que adapta su interfaz, estado y funcionalidades de forma dinámica (Conductor vs. Pasajero), y un Panel Web Administrativo (Filament).
 *   **Ecosistema de Microservicios:**
-    *   **API Gateway y Autenticación:** *Este repositorio (Laravel).*
+    *   **Servicio de Autenticación:** *Este repositorio (Laravel).*
+    *   **API Gateway:** Servicio de enrutamiento y control de acceso.
     *   **Panel Administrativo:** Gestión integral con Laravel/Filament.
     *   **Rastreo GPS en tiempo real:** Comunicación bidireccional usando Laravel Reverb/WebSockets.
     *   **Motor Predictivo ETA:** Inteligencia Artificial implementada en Python/TensorFlow.

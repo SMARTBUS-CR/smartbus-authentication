@@ -109,6 +109,28 @@ class AuthController extends Controller
     }
 
     /**
+     * Validate Token
+     *
+     * Validates the current access token for the authenticated user.
+     * Returns a JSON response indicating whether the token is valid or not.
+     *
+     * @throws UnauthorizedException
+     */
+    public function validateToken(Request $request): JsonResponse
+    {
+        if (!$request->user()) {
+            return response()->json([
+                'message' => __('This action is unauthorized.'),
+            ], HttpStatus::HTTP_UNAUTHORIZED);
+        }
+
+        return response()->json([
+            'valid' => true,
+            'expires_at' => $request->user()->currentAccessToken()->expires_at,
+        ], HttpStatus::HTTP_OK);
+    }
+
+    /**
      * Get Token Expiration Time for User
      * Returns the expiration time for the user's access token based on their role.
      *
