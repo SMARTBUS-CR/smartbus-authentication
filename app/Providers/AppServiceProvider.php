@@ -4,8 +4,6 @@ namespace App\Providers;
 
 use App\Documentation\RuleTransformers\ConfirmedRule;
 use App\Documentation\RuleTransformers\PasswordRuleTransformer;
-use App\Enums\UserRoles;
-use App\Models\User;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\Parameter;

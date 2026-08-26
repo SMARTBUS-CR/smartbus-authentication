@@ -118,7 +118,7 @@ class AuthController extends Controller
      */
     public function validateToken(Request $request): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json([
                 'message' => __('This action is unauthorized.'),
             ], HttpStatus::HTTP_UNAUTHORIZED);
