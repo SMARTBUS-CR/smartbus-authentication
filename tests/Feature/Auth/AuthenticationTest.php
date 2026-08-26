@@ -36,10 +36,16 @@ describe('Passenger Registration', function () {
 
         $response->assertCreated()
             ->assertJsonStructure([
-                'access_token',
-                'token_type',
-                'user' => ['id', 'name', 'email'],
-            ]);
+                'data' => [
+                    'type',
+                    'id',
+                    'attributes' => ['name', 'email', 'permissions'],
+                ],
+                'meta' => ['access_token', 'token_type', 'expires_at'],
+            ])
+            ->assertJsonPath('data.type', 'users')
+            ->assertJsonPath('data.attributes.name', 'Pasajero de Prueba')
+            ->assertJsonPath('data.attributes.email', 'pasajero@smartbus.com');
 
         // Check that the user was saved in the database
         assertDatabaseHas('users', [
@@ -68,19 +74,23 @@ describe('Login and Logout', function () {
         ]);
         $user->assignRole(UserRoles::PASSENGER);
 
-        $response = postJson(route('login'), [
+        $response = postJson(route('login', 'include=roles'), [
             'email' => 'login@smartbus.com',
             'password' => 'password123',
         ]);
 
         $response->assertSuccessful()
             ->assertJsonStructure([
-                'access_token',
-                'token_type',
-                'roles',
+                'data' => [
+                    'type',
+                    'id',
+                    'attributes' => ['name', 'email', 'permissions'],
+                    'relationships' => ['roles'],
+                ],
+                'meta' => ['access_token', 'token_type', 'expires_at'],
             ])
-            ->assertJsonPath('roles.0.value', UserRoles::PASSENGER->value)
-            ->assertJsonPath('roles.0.label', UserRoles::PASSENGER->label());
+            ->assertJsonPath('data.type', 'users')
+            ->assertJsonPath('meta.token_type', 'Bearer');
     });
 
     it('rejects login with invalid credentials', function () {
@@ -157,7 +167,7 @@ describe('Login and Logout', function () {
         $response = postJson(route('logout'));
 
         $response->assertSuccessful()
-            ->assertJson(['message' => __('auth.logged_out')]);
+            ->assertJsonPath('meta.message', __('auth.logged_out'));
     });
 });
 
@@ -170,12 +180,14 @@ describe('Protected Routes (Sanctum)', function () {
         // Simulate authentication with Sanctum
         Sanctum::actingAs($user, ['*']);
 
-        $response = getJson(route('user'));
+        $response = getJson(route('user', 'include=roles'));
 
         $response->assertSuccessful()
-            ->assertJsonPath('user.email', $user->email)
-            ->assertJsonPath('user.roles.0.value', UserRoles::PASSENGER->value)
-            ->assertJsonPath('user.roles.0.label', UserRoles::PASSENGER->label());
+            ->assertJsonPath('data.type', 'users')
+            ->assertJsonPath('data.attributes.email', $user->email)
+            ->assertJsonPath('included.0.type', 'roles')
+            ->assertJsonPath('included.0.attributes.value', UserRoles::PASSENGER->value)
+            ->assertJsonPath('included.0.attributes.label', UserRoles::PASSENGER->label());
     });
 
     it('blocks access to user route when no token is provided', function () {

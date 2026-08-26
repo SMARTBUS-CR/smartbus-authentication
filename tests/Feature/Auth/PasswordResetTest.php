@@ -20,7 +20,7 @@ describe('Password Reset (OTP)', function () {
         $response = postJson(route('password.forgot'), ['email' => 'test@smartbus.com']);
 
         $response->assertSuccessful()
-            ->assertJsonPath('message', 'A password recovery code has been sent to your email.');
+            ->assertJsonPath('meta.message', 'A password recovery code has been sent to your email.');
 
         Mail::assertSent(
             ResetPasswordCode::class,
@@ -40,7 +40,7 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $response->assertSuccessful()
-            ->assertJsonPath('message', 'Se ha enviado un código de recuperación a tu correo.');
+            ->assertJsonPath('meta.message', 'Se ha enviado un código de recuperación a tu correo.');
 
         Mail::assertSent(
             ResetPasswordCode::class,
@@ -76,7 +76,7 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $response->assertSuccessful()
-            ->assertJsonPath('message', 'Password updated successfully.');
+            ->assertJsonPath('meta.message', 'Password updated successfully.');
 
         expect(DB::table('password_reset_tokens')->count())->toBe(0)
             ->and(Hash::check($newPassword, $user->fresh()->password))->toBeTrue();
@@ -115,7 +115,7 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $response->assertSuccessful()
-            ->assertJsonPath('message', 'Contraseña actualizada correctamente.');
+            ->assertJsonPath('meta.message', 'Contraseña actualizada correctamente.');
     });
 
     it('rejects reset attempts when no token exists for the email in both locales', function () {
@@ -130,7 +130,8 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $responseEn->assertBadRequest()
-            ->assertJsonPath('message', 'The code is invalid or has expired.');
+            ->assertJsonPath('errors.0.detail', 'The code is invalid or has expired.')
+            ->assertJsonPath('errors.0.title', 'Invalid Code');
 
         $responseEs = postJson(route('password.reset'), [
             'email' => $user->email,
@@ -142,7 +143,8 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $responseEs->assertBadRequest()
-            ->assertJsonPath('message', 'El código es inválido o ha expirado.');
+            ->assertJsonPath('errors.0.detail', 'El código es inválido o ha expirado.')
+            ->assertJsonPath('errors.0.title', 'Código inválido');
     });
 
     it('rejects incorrect codes in both locales', function () {
@@ -164,7 +166,8 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $responseEn->assertBadRequest()
-            ->assertJsonPath('message', 'The entered code is incorrect.');
+            ->assertJsonPath('errors.0.detail', 'The entered code is incorrect.')
+            ->assertJsonPath('errors.0.title', 'Incorrect Code');
 
         $responseEs = postJson(route('password.reset'), [
             'email' => $user->email,
@@ -176,7 +179,8 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $responseEs->assertBadRequest()
-            ->assertJsonPath('message', 'El código ingresado es incorrecto.');
+            ->assertJsonPath('errors.0.detail', 'El código ingresado es incorrecto.')
+            ->assertJsonPath('errors.0.title', 'Código incorrecto');
     });
 
     it('rejects expired codes in both locales', function () {
@@ -200,7 +204,8 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $responseEn->assertBadRequest()
-            ->assertJsonPath('message', 'The code has expired. Please request a new one.');
+            ->assertJsonPath('errors.0.detail', 'The code has expired. Please request a new one.')
+            ->assertJsonPath('errors.0.title', 'Code Expired');
 
         $responseEs = postJson(route('password.reset'), [
             'email' => $userEs->email,
@@ -212,7 +217,8 @@ describe('Password Reset (OTP)', function () {
         ]);
 
         $responseEs->assertBadRequest()
-            ->assertJsonPath('message', 'El código ha expirado. Solicita uno nuevo.');
+            ->assertJsonPath('errors.0.detail', 'El código ha expirado. Solicita uno nuevo.')
+            ->assertJsonPath('errors.0.title', 'Código expirado');
     });
 
     it('renders the reset password email in Spanish', function () {

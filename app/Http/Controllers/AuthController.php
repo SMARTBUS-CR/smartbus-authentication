@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\UserRoles;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
-use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Traits\ApiResponser;
 use Carbon\Carbon;
 use Dedoc\Scramble\Attributes\Group;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -20,6 +21,8 @@ use Symfony\Component\HttpFoundation\Response as HttpStatus;
 #[Group(name: 'Authentication', description: 'Endpoints for user authentication, and registration.')]
 class AuthController extends Controller
 {
+    use ApiResponser;
+
     /**
      * Register Passenger
      *
@@ -28,6 +31,7 @@ class AuthController extends Controller
      *
      * @throws ValidationException
      */
+    #[Response(status: HttpStatus::HTTP_CREATED, description: 'User registered successfully.')]
     public function registerPassenger(RegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -44,11 +48,16 @@ class AuthController extends Controller
         $deviceName = $request->header('User-Agent', 'auth_token');
         $token = $user->createToken($deviceName, ['*'], $expiresAt)->plainTextToken;
 
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => UserResource::make($user),
-        ], HttpStatus::HTTP_CREATED);
+        return UserResource::make($user)
+            ->additional([
+                'meta' => [
+                    'access_token' => $token,
+                    'token_type' => 'Bearer',
+                    'expires_at' => $expiresAt->toIso8601String(),
+                ],
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::HTTP_CREATED);
     }
 
     /**
@@ -59,21 +68,24 @@ class AuthController extends Controller
      *
      * @throws ValidationException
      */
-    public function login(LoginRequest $request): JsonResponse
+    #[Response(status: HttpStatus::HTTP_OK, description: 'User authenticated successfully.')]
+    public function login(LoginRequest $request): UserResource
     {
         $user = $request->authenticate();
 
         $user->tokens()->delete(); // Delete all previous tokens
+        $user->load('roles'); // Load roles for the authenticated user
 
         $expiresAt = $this->getTokenExpirationForUser($user);
         $deviceName = $request->header('User-Agent', 'auth_token');
         $token = $user->createToken($deviceName, ['*'], $expiresAt)->plainTextToken;
 
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'roles' => RoleResource::collection($user->roles),
-            'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+        return UserResource::make($user)->additional([
+            'meta' => [
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'expires_at' => $expiresAt->toIso8601String(),
+            ],
         ]);
     }
 
@@ -85,11 +97,15 @@ class AuthController extends Controller
      *
      * @throws UnauthorizedException
      */
+    #[Response(status: HttpStatus::HTTP_OK, description: 'Successfully logged out.', type: 'array{meta: array{message: string}}')]
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json(['message' => __('auth.logged_out')]);
+        // Logout Response following the [JSON:API](https://jsonapi.org/) specification.
+        return $this->successResponse([
+            'message' => __('auth.logged_out'),
+        ], HttpStatus::HTTP_OK);
     }
 
     /**
@@ -99,13 +115,12 @@ class AuthController extends Controller
      *
      * @throws UnauthorizedException
      */
-    public function user(Request $request): JsonResponse
+    #[Response(status: HttpStatus::HTTP_OK, description: 'Authenticated user retrieved successfully.')]
+    public function user(Request $request): UserResource
     {
-        $user = $request->user();
+        $user = $request->user()->load('roles');
 
-        return response()->json([
-            'user' => UserResource::make($user),
-        ]);
+        return UserResource::make($user);
     }
 
     /**
@@ -116,17 +131,21 @@ class AuthController extends Controller
      *
      * @throws UnauthorizedException
      */
+    #[Response(status: HttpStatus::HTTP_OK, description: 'Token is valid.', type: 'array{meta: array{valid: bool, expires_at: string}}')]
+    #[Response(status: HttpStatus::HTTP_UNAUTHORIZED, description: 'Token is invalid or expired.', type: 'array{errors: array{status: string, title: string, detail: string}}')]
     public function validateToken(Request $request): JsonResponse
     {
         if (! $request->user()) {
-            return response()->json([
-                'message' => __('This action is unauthorized.'),
-            ], HttpStatus::HTTP_UNAUTHORIZED);
+            return $this->errorResponse(
+                __('This action is unauthorized.'),
+                __('Unauthorized'),
+                HttpStatus::HTTP_UNAUTHORIZED
+            );
         }
 
-        return response()->json([
+        return $this->successResponse([
             'valid' => true,
-            'expires_at' => $request->user()->currentAccessToken()->expires_at,
+            'expires_at' => $request->user()->currentAccessToken()->expires_at->toIso8601String(),
         ], HttpStatus::HTTP_OK);
     }
 
