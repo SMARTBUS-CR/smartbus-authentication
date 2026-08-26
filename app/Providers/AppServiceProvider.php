@@ -11,7 +11,6 @@ use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\Parameter;
 use Dedoc\Scramble\Support\Generator\Schema;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,9 +28,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Define a gate to check if the user has the SUPER_ADMIN role
-        Gate::define('viewApiDocs', fn (User $user) => $user->hasRole(UserRoles::SUPER_ADMIN));
-
         // Configure Scramble to use custom rule transformers for API documentation
         Scramble::configure()
             ->withRuleTransformers([
