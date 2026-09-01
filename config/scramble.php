@@ -105,10 +105,19 @@ return [
      * ],
      * ```
      */
-    'servers' => [
-        'Production' => 'https://smartbus-authentication.onrender.com/api',
-        'Development' => 'https://smartbus-authentication-dev.onrender.com/api',
-    ],
+    'servers' => match (env('APP_ENV')) {
+        'production' => [
+            'Production' => 'https://smartbus-authentication.onrender.com/api',
+        ],
+        'local' => [
+            'Local1' => 'http://localhost:8000/api',
+            'Local2' => 'https://smartbus-authentication.test/api',
+            'Cloud' => 'https://smartbus-authentication-dev.onrender.com/api',
+        ],
+        default => [
+            'Development' => 'https://smartbus-authentication-dev.onrender.com/api',
+        ],
+    },
 
     /**
      * Determines how Scramble stores the descriptions of enum cases.

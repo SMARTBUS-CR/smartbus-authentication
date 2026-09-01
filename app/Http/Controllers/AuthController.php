@@ -27,7 +27,7 @@ class AuthController extends Controller
      * Register Passenger
      *
      * Registers a new passenger user in the system.
-     * The user will be assigned the 'passenger' role and an access token will be generated for them.
+     * The user will be assigned the `passenger` role and an access token will be generated for them.
      *
      * @throws ValidationException
      */
@@ -109,7 +109,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Get Authenticated User
+     * User Information
      *
      * Returns the authenticated user's information along with their roles.
      *
