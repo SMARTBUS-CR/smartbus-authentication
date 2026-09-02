@@ -109,28 +109,28 @@ describe('Login and Logout', function () {
     });
 
     it('blocks login attempts after 5 failed tries (Rate Limiting)', function () {
-        $user = User::factory()->create([
-            'email' => 'hacker@smartbus.com',
+        $email = 'hacker-'.fake()->unique()->safeEmail();
+
+        User::factory()->create([
+            'email' => $email,
             'password' => bcrypt('password123'),
         ]);
 
-        // The first 5 attempts should fail but not trigger the rate limiter
+        // The first 5 failed attempts should be rejected normally.
         for ($i = 0; $i < 5; $i++) {
             postJson(route('login'), [
-                'email' => 'hacker@smartbus.com',
+                'email' => $email,
                 'password' => 'wrong-password',
             ]);
         }
 
-        // The 6th attempt should be blocked by the Rate Limiter
+        // The 6th attempt should be blocked by the route-level rate limiter.
         $response = postJson(route('login'), [
-            'email' => 'hacker@smartbus.com',
+            'email' => $email,
             'password' => 'wrong-password',
         ]);
 
-        // The response should return a 422 with the throttle error on the email field
-        $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['email']);
+        $response->assertTooManyRequests();
     });
 
     it('deletes previous tokens upon successful login (Single Active Session)', function () {
