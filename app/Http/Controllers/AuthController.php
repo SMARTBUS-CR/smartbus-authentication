@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRoles;
+use App\Enums\UserRole;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Resources\UserResource;
@@ -42,7 +42,7 @@ class AuthController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        $user->assignRole(UserRoles::PASSENGER);
+        $user->assignRole(UserRole::PASSENGER);
 
         $expiresAt = $this->getTokenExpirationForUser($user);
         $deviceName = $request->header('User-Agent', 'auth_token');
@@ -159,9 +159,9 @@ class AuthController extends Controller
     private function getTokenExpirationForUser(User $user): Carbon
     {
         return match (true) {
-            $user->hasRole(UserRoles::SUPER_ADMIN) => now()->addHours(2),
-            $user->hasRole(UserRoles::COMPANY_ADMIN) => now()->addHours(8),
-            $user->hasRole(UserRoles::DRIVER) => now()->addHours(14),
+            $user->hasRole(UserRole::SUPER_ADMIN) => now()->addHours(2),
+            $user->hasRole(UserRole::COMPANY_ADMIN) => now()->addHours(8),
+            $user->hasRole(UserRole::DRIVER) => now()->addHours(14),
             default => now()->addDays(30),
         };
     }

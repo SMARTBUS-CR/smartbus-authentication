@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\UserRoles;
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -16,10 +16,10 @@ pest()->use(RefreshDatabase::class);
 
 beforeEach(function () {
     // Initial setup: Create the necessary role before each test
-    Role::firstOrCreate(['name' => UserRoles::PASSENGER, 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => UserRoles::SUPER_ADMIN, 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => UserRoles::COMPANY_ADMIN, 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => UserRoles::DRIVER, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRole::PASSENGER, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRole::SUPER_ADMIN, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRole::COMPANY_ADMIN, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRole::DRIVER, 'guard_name' => 'web']);
 });
 
 describe('Passenger Registration', function () {
@@ -54,14 +54,16 @@ describe('Passenger Registration', function () {
 
         // Check that the user has the 'passenger' role
         $user = User::where('email', 'pasajero@smartbus.com')->first();
-        expect($user->hasRole(UserRoles::PASSENGER))->toBeTrue();
+        expect($user->hasRole(UserRole::PASSENGER))->toBeTrue();
     });
 
     it('rejects registration when required data is missing', function () {
         $response = postJson(route('register.passenger'), []);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'email', 'password']);
+            ->assertJsonPath('errors.0.source.pointer', '/data/attributes/name')
+            ->assertJsonPath('errors.1.source.pointer', '/data/attributes/email')
+            ->assertJsonPath('errors.2.source.pointer', '/data/attributes/password');
     });
 });
 
@@ -72,7 +74,7 @@ describe('Login and Logout', function () {
             'email' => 'login@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::PASSENGER);
+        $user->assignRole(UserRole::PASSENGER);
 
         $response = postJson(route('login', 'include=roles'), [
             'email' => 'login@smartbus.com',
@@ -105,7 +107,8 @@ describe('Login and Logout', function () {
         ]);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['email']);
+            ->assertJsonPath('errors.0.source.pointer', '/data/attributes/email')
+            ->assertJsonPath('errors.0.title', 'Validation Error');
     });
 
     it('blocks login attempts after 5 failed tries (Rate Limiting)', function () {
@@ -130,7 +133,9 @@ describe('Login and Logout', function () {
             'password' => 'wrong-password',
         ]);
 
-        $response->assertTooManyRequests();
+        $response->assertTooManyRequests()
+            ->assertJsonPath('errors.0.status', '429')
+            ->assertJsonPath('errors.0.title', 'Too Many Requests');
     });
 
     it('deletes previous tokens upon successful login (Single Active Session)', function () {
@@ -138,7 +143,7 @@ describe('Login and Logout', function () {
             'email' => 'multidevice@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::PASSENGER);
+        $user->assignRole(UserRole::PASSENGER);
 
         // Simulates that the user already had an open session on another device
         $user->createToken('old_device');
@@ -175,7 +180,7 @@ describe('Protected Routes (Sanctum)', function () {
 
     it('returns the authenticated user information', function () {
         $user = User::factory()->create();
-        $user->assignRole(UserRoles::PASSENGER);
+        $user->assignRole(UserRole::PASSENGER);
 
         // Simulate authentication with Sanctum
         Sanctum::actingAs($user, ['*']);
@@ -186,8 +191,8 @@ describe('Protected Routes (Sanctum)', function () {
             ->assertJsonPath('data.type', 'users')
             ->assertJsonPath('data.attributes.email', $user->email)
             ->assertJsonPath('included.0.type', 'roles')
-            ->assertJsonPath('included.0.attributes.value', UserRoles::PASSENGER->value)
-            ->assertJsonPath('included.0.attributes.label', UserRoles::PASSENGER->label());
+            ->assertJsonPath('included.0.attributes.value', UserRole::PASSENGER->value)
+            ->assertJsonPath('included.0.attributes.label', UserRole::PASSENGER->label());
     });
 
     it('blocks access to user route when no token is provided', function () {
@@ -205,14 +210,16 @@ describe('Internationalization (Locale)', function () {
         ]);
 
         $response->assertUnprocessable()
-            ->assertJsonPath('errors.email.0', 'El campo correo electrónico es obligatorio.');
+            ->assertJsonPath('errors.0.detail', 'El campo correo electrónico es obligatorio.')
+            ->assertJsonPath('errors.0.source.pointer', '/data/attributes/email');
     });
 
     it('returns validation errors in English when no Accept-Language header is sent', function () {
         $response = postJson(route('login'));
 
         $response->assertUnprocessable()
-            ->assertJsonPath('errors.email.0', 'The email field is required.');
+            ->assertJsonPath('errors.0.detail', 'The email field is required.')
+            ->assertJsonPath('errors.0.source.pointer', '/data/attributes/email');
     });
 });
 
@@ -225,7 +232,7 @@ describe('Tokens Expiration by Role', function () {
             'email' => 'passenger_exp@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::PASSENGER);
+        $user->assignRole(UserRole::PASSENGER);
 
         postJson(route('login'), [
             'email' => 'passenger_exp@smartbus.com',
@@ -245,7 +252,7 @@ describe('Tokens Expiration by Role', function () {
             'email' => 'driver_exp@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::DRIVER);
+        $user->assignRole(UserRole::DRIVER);
 
         postJson(route('login'), [
             'email' => 'driver_exp@smartbus.com',
@@ -263,7 +270,7 @@ describe('Tokens Expiration by Role', function () {
             'email' => 'admin_exp@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::COMPANY_ADMIN);
+        $user->assignRole(UserRole::COMPANY_ADMIN);
 
         postJson(route('login'), [
             'email' => 'admin_exp@smartbus.com',
@@ -281,7 +288,7 @@ describe('Tokens Expiration by Role', function () {
             'email' => 'super_admin_exp@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRoles::SUPER_ADMIN);
+        $user->assignRole(UserRole::SUPER_ADMIN);
 
         postJson(route('login'), [
             'email' => 'super_admin_exp@smartbus.com',

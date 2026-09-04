@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Enums\UserRoles;
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -45,7 +45,7 @@ class UserFactory extends Factory
         ]);
     }
 
-    public function withRole(UserRoles $role = UserRoles::PASSENGER): static
+    public function withRole(UserRole $role = UserRole::PASSENGER): static
     {
         return $this->afterCreating(function (User $user) use ($role) {
             if (! $user->hasRole($role)) {
