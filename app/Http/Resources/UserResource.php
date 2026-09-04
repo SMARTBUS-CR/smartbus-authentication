@@ -29,6 +29,10 @@ class UserResource extends JsonApiResource
                 ->getAllPermissions()
                 ->pluck('name')
                 ->values(),
+            'direct_permissions' => $this->resource
+                ->getDirectPermissions()
+                ->pluck('name')
+                ->values(),
         ];
     }
 

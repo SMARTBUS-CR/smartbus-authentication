@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\UserRoles;
+use App\Enums\UserRole;
 use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -12,7 +12,7 @@ pest()->use(RefreshDatabase::class);
 describe('RoleResource & UserResource (JSON:API)', function () {
 
     it('returns the role resource attributes in JSON:API format', function () {
-        $roleModel = new Role(['name' => UserRoles::SUPER_ADMIN->value]);
+        $roleModel = new Role(['name' => UserRole::SUPER_ADMIN->value]);
         $roleModel->id = 1;
 
         $resource = RoleResource::make($roleModel);
@@ -25,9 +25,9 @@ describe('RoleResource & UserResource (JSON:API)', function () {
     });
 
     it('returns transformed roles in the user resource relationships', function () {
-        Role::create(['name' => UserRoles::SUPER_ADMIN->value, 'guard_name' => 'web']);
+        Role::create(['name' => UserRole::SUPER_ADMIN->value, 'guard_name' => 'web']);
         $user = User::factory()->create();
-        $user->assignRole(UserRoles::SUPER_ADMIN);
+        $user->assignRole(UserRole::SUPER_ADMIN);
 
         // Load the roles relationship to ensure it's available for the resource
         $user->load('roles');
