@@ -42,13 +42,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $errorTitle = static function (int $status): string {
             return match ($status) {
-                HttpResponse::HTTP_UNAUTHORIZED => 'Unauthorized',
-                HttpResponse::HTTP_FORBIDDEN => 'Forbidden',
-                HttpResponse::HTTP_NOT_FOUND => 'Not Found',
-                HttpResponse::HTTP_METHOD_NOT_ALLOWED => 'Method Not Allowed',
-                HttpResponse::HTTP_TOO_MANY_REQUESTS => 'Too Many Requests',
-                HttpResponse::HTTP_UNPROCESSABLE_ENTITY => 'Validation Error',
-                default => $status >= 500 ? 'Server Error' : 'Request Error',
+                HttpResponse::HTTP_UNAUTHORIZED => __('Unauthorized'),
+                HttpResponse::HTTP_FORBIDDEN => __('Forbidden'),
+                HttpResponse::HTTP_NOT_FOUND => __('Not Found'),
+                HttpResponse::HTTP_METHOD_NOT_ALLOWED => __('Method Not Allowed'),
+                HttpResponse::HTTP_TOO_MANY_REQUESTS => __('Too Many Requests'),
+                HttpResponse::HTTP_UNPROCESSABLE_ENTITY => __('Validation Error'),
+                default => $status >= 500 ? __('Server Error') : __('Request Error'),
             };
         };
 
@@ -58,13 +58,13 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return match ($status) {
-                HttpResponse::HTTP_UNAUTHORIZED => 'Authentication is required.',
-                HttpResponse::HTTP_FORBIDDEN => 'You are not authorized to perform this action.',
-                HttpResponse::HTTP_NOT_FOUND => 'The requested resource was not found.',
-                HttpResponse::HTTP_METHOD_NOT_ALLOWED => 'The requested method is not allowed.',
-                HttpResponse::HTTP_TOO_MANY_REQUESTS => 'Too many requests.',
-                HttpResponse::HTTP_UNPROCESSABLE_ENTITY => 'The given data was invalid.',
-                default => 'An unexpected error occurred.',
+                HttpResponse::HTTP_UNAUTHORIZED => __('Authentication is required.'),
+                HttpResponse::HTTP_FORBIDDEN => __('This action is unauthorized.'),
+                HttpResponse::HTTP_NOT_FOUND => __('The requested resource was not found.'),
+                HttpResponse::HTTP_METHOD_NOT_ALLOWED => __('Method Not Allowed'),
+                HttpResponse::HTTP_TOO_MANY_REQUESTS => __('Too Many Requests'),
+                HttpResponse::HTTP_UNPROCESSABLE_ENTITY => __('The given data was invalid.'),
+                default => __('An unexpected error occurred.'),
             };
         };
 
@@ -73,8 +73,8 @@ return Application::configure(basePath: dirname(__DIR__))
                 return collect($exception->errors())
                     ->flatMap(fn (array $messages, string $field): array => array_map(
                         fn (string $message): array => [
-                            'status' => '422',
-                            'title' => 'Validation Error',
+                            'status' => HttpResponse::HTTP_UNPROCESSABLE_ENTITY,
+                            'title' => __('Validation Error'),
                             'detail' => $message,
                             'source' => ['pointer' => "/data/attributes/{$field}"],
                         ],
