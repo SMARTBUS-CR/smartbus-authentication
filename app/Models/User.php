@@ -21,6 +21,7 @@ class User extends Authenticatable implements MustVerifyEmail
     use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable;
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     /**
