@@ -29,7 +29,7 @@ describe('RoleResource & UserResource (JSON:API)', function () {
         $user = User::factory()->create();
         $user->assignRole(UserRole::SUPER_ADMIN);
 
-        // Cargamos ansiosamente la relación 'roles' para que el recurso la procese
+        // Load the roles relationship to ensure it's available for the resource
         $user->load('roles');
         $response = UserResource::make($user)
             ->additional(['included' => RoleResource::collection($user->roles)])
