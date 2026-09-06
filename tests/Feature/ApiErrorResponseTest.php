@@ -14,27 +14,29 @@ beforeEach(function () {
     $this->seed(PermissionSeeder::class);
 });
 
-it('formats not found API errors as JSON:API errors', function () {
-    $admin = User::factory()->withRole(UserRole::SuperAdmin)->create();
-    Sanctum::actingAs($admin);
+describe('API Error Response', function () {
+    it('formats not found API errors as JSON:API errors', function () {
+        $admin = User::factory()->withRole(UserRole::SuperAdmin)->create();
+        Sanctum::actingAs($admin);
 
-    $this->getJson(route('users.show', ['user' => 999999]))
-        ->assertNotFound()
-        ->assertJsonStructure(['errors' => [['status', 'title', 'detail']]])
-        ->assertJsonPath('errors.0.status', '404')
-        ->assertJsonPath('errors.0.title', 'Not Found');
-});
+        $this->getJson(route('users.show', ['user' => 999999]))
+            ->assertNotFound()
+            ->assertJsonStructure(['errors' => [['status', 'title', 'detail']]])
+            ->assertJsonPath('errors.0.status', '404')
+            ->assertJsonPath('errors.0.title', __('Not Found'));
+    });
 
-it('formats method not allowed API errors as JSON:API errors', function () {
-    $this->postJson(route('user'))
-        ->assertMethodNotAllowed()
-        ->assertJsonPath('errors.0.status', '405')
-        ->assertJsonPath('errors.0.title', 'Method Not Allowed');
-});
+    it('formats method not allowed API errors as JSON:API errors', function () {
+        $this->postJson(route('user'))
+            ->assertMethodNotAllowed()
+            ->assertJsonPath('errors.0.status', '405')
+            ->assertJsonPath('errors.0.title', __('Method Not Allowed'));
+    });
 
-it('formats unauthorized API errors as JSON:API errors', function () {
-    $this->getJson(route('user'))
-        ->assertUnauthorized()
-        ->assertJsonPath('errors.0.status', '401')
-        ->assertJsonPath('errors.0.title', 'Unauthorized');
+    it('formats unauthorized API errors as JSON:API errors', function () {
+        $this->getJson(route('user'))
+            ->assertUnauthorized()
+            ->assertJsonPath('errors.0.status', '401')
+            ->assertJsonPath('errors.0.title', __('Unauthorized'));
+    });
 });

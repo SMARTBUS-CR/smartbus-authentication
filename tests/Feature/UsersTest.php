@@ -34,14 +34,14 @@ describe('User Management and Authorization', function () {
         $this->getJson(route('users.index'))
             ->assertUnauthorized()
             ->assertJsonPath('errors.0.status', '401')
-            ->assertJsonPath('errors.0.title', 'Unauthorized');
+            ->assertJsonPath('errors.0.title', __('Unauthorized'));
 
         Sanctum::actingAs(User::factory()->withRole(UserRole::Passenger)->create());
 
         $this->getJson(route('users.index'))
             ->assertForbidden()
             ->assertJsonPath('errors.0.status', '403')
-            ->assertJsonPath('errors.0.title', 'Forbidden');
+            ->assertJsonPath('errors.0.title', __('Forbidden'));
     });
 
     it('creates and updates a user without changing the password optionally', function () {
