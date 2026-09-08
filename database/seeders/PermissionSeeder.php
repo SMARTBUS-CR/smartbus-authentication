@@ -18,6 +18,11 @@ class PermissionSeeder extends Seeder
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         $permissions = [
+            'companies.view',
+            'companies.create',
+            'companies.update',
+            'companies.delete',
+            'companies.manage',
             'users.view',
             'users.create',
             'users.update',
@@ -43,6 +48,14 @@ class PermissionSeeder extends Seeder
                 'users.view',
                 'users.create',
                 'users.update',
+                'users.delete',
+                'users.assign-roles',
+                'users.assign-permissions',
+                'companies.view',
+                'companies.create',
+                'companies.update',
+                'companies.delete',
+                'companies.manage',
                 'roles.view',
                 'permissions.view',
             ]);

@@ -1,7 +1,4 @@
 # Project Rules Index
 
-Before planning or editing, find the row whose globs match the file's path and read that rule file.
+- `git-commits.md`: Covers git commit conventions and message formatting.
 
-| Applies to | Rule file |
-| --- | --- |
-| app/Http/** | .ai/rules/http.md |
