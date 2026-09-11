@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Documentation\RuleTransformers\ConfirmedRule;
 use App\Documentation\RuleTransformers\PasswordRuleTransformer;
+use App\Enums\UserRole;
 use App\Models\User;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -31,6 +32,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::before(function (?User $user): ?bool {
+            if ($user?->hasRole(UserRole::SuperAdmin)) {
+                return true;
+            }
+
+            return null;
+        });
+
         // Define a rate limiter for the API routes, limiting requests to 60 per minute based on the token or IP address
         RateLimiter::for('api', function (Request $request) {
             // Limit based on the token if present, otherwise IP address

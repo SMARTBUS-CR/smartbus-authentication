@@ -2,12 +2,16 @@
 
 namespace App\Http\Resources;
 
-use App\Enums\UserRoles;
+use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\JsonApi\JsonApiResource;
+use Spatie\Permission\Models\Role;
 
+/** @mixin Role */
 class RoleResource extends JsonApiResource
 {
+    public $id = 'name';
+
     /**
      * Get the resource's attributes.
      *
@@ -15,7 +19,7 @@ class RoleResource extends JsonApiResource
      */
     public function toAttributes(Request $request): array
     {
-        $role = UserRoles::from($this->resource->name);
+        $role = UserRole::from($this->resource->name);
 
         return [
             /**

@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Enums\UserRoles;
+use App\Enums\UserRole;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -18,9 +18,9 @@ class RoleSeeder extends Seeder
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Create roles based on the UserRoles enum
-        $roles = UserRoles::cases();
+        $roles = UserRole::cases();
         foreach ($roles as $role) {
-            Role::create(['name' => $role->value]);
+            Role::findOrCreate($role->value, 'web');
         }
     }
 }
