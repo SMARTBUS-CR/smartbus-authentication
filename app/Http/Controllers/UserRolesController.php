@@ -100,7 +100,7 @@ class UserRolesController extends Controller implements HasMiddleware
     public function destroy(User $user, string $role): JsonResponse
     {
         $roleValue = $this->validatedRole($role);
-        if (request()->user()->is($user) && in_array($roleValue, [UserRole::SuperAdmin->value, UserRole::CompanyAdmin->value], true)) {
+        if (request()->user()->is($user) && in_array($roleValue, [UserRole::SuperAdmin->value, UserRole::Admin->value], true)) {
             return $this->errorResponse('You cannot revoke your own administrator role.', 'Conflict', HttpStatus::HTTP_CONFLICT);
         }
 
@@ -161,8 +161,8 @@ class UserRolesController extends Controller implements HasMiddleware
     private function ensureNotRemovingLastAdmin(User $actor, User $user, array $roles): void
     {
         $this->ensureNotEscalating($actor, $roles);
-        $isAdmin = array_intersect($roles, [UserRole::SuperAdmin->value, UserRole::CompanyAdmin->value]) !== [];
-        if (! $isAdmin && $user->hasAnyRole([UserRole::SuperAdmin->value, UserRole::CompanyAdmin->value]) && User::role([UserRole::SuperAdmin->value, UserRole::CompanyAdmin->value])->count() <= 1) {
+        $isAdmin = array_intersect($roles, [UserRole::SuperAdmin->value, UserRole::Admin->value]) !== [];
+        if (! $isAdmin && $user->hasAnyRole([UserRole::SuperAdmin->value, UserRole::Admin->value]) && User::role([UserRole::SuperAdmin->value, UserRole::Admin->value])->count() <= 1) {
             throw ValidationException::withMessages(['roles' => ['The last administrator role cannot be revoked.']]);
         }
     }

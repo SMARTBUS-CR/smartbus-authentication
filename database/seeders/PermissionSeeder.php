@@ -17,22 +17,46 @@ class PermissionSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
+        setPermissionsTeamId(null); // Global permissions, no team association
+
         $permissions = [
-            'companies.view',
-            'companies.create',
-            'companies.update',
-            'companies.delete',
-            'companies.manage',
-            'users.view',
-            'users.create',
-            'users.update',
-            'users.delete',
-            'users.assign-roles',
-            'users.assign-permissions',
-            'roles.view',
-            'roles.manage',
-            'permissions.view',
-            'permissions.manage',
+            'ViewAny:Company',
+            'View:Company',
+            'Create:Company',
+            'Update:Company',
+            'Delete:Company',
+            'DeleteAny:Company',
+            'Restore:Company',
+            'ForceDelete:Company',
+            'ForceDeleteAny:Company',
+            'RestoreAny:Company',
+            'Replicate:Company',
+            'Reorder:Company',
+            'ViewAny:User',
+            'View:User',
+            'Create:User',
+            'Update:User',
+            'Delete:User',
+            'DeleteAny:User',
+            'Restore:User',
+            'ForceDelete:User',
+            'ForceDeleteAny:User',
+            'RestoreAny:User',
+            'Replicate:User',
+            'Reorder:User',
+            'ViewAny:Role',
+            'View:Role',
+            'Create:Role',
+            'Update:Role',
+            'Delete:Role',
+            'DeleteAny:Role',
+            'Restore:Role',
+            'ForceDelete:Role',
+            'ForceDeleteAny:Role',
+            'RestoreAny:Role',
+            'Replicate:Role',
+            'Reorder:Role',
+            'View:Dashboard',
         ];
 
         $permissionModels = [];
@@ -43,21 +67,10 @@ class PermissionSeeder extends Seeder
         Role::findByName(UserRole::SUPER_ADMIN->value, 'web')
             ->syncPermissions($permissionModels);
 
-        Role::findByName(UserRole::COMPANY_ADMIN->value, 'web')
-            ->syncPermissions([
-                'users.view',
-                'users.create',
-                'users.update',
-                'users.delete',
-                'users.assign-roles',
-                'users.assign-permissions',
-                'companies.view',
-                'companies.create',
-                'companies.update',
-                'companies.delete',
-                'companies.manage',
-                'roles.view',
-                'permissions.view',
-            ]);
+        Role::findByName(UserRole::ADMIN->value, 'web')
+            ->syncPermissions(collect($permissions)
+                ->filter(fn ($permission) => str_contains($permission, 'Dashboard'))
+                ->toArray()
+            );
     }
 }
