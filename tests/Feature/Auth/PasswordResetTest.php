@@ -56,6 +56,7 @@ describe('Password Reset (OTP)', function () {
         $user = User::factory()->create([
             'email' => 'test@smartbus.com',
             'password' => $oldPassword,
+            'email_verified_at' => now(),
         ]);
 
         postJson(route('password.forgot'), ['email' => $user->email])

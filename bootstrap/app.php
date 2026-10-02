@@ -54,7 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $errorDetail = static function (Throwable $exception, int $status): string {
             if ($exception instanceof HttpExceptionInterface && $status < HttpResponse::HTTP_INTERNAL_SERVER_ERROR && $exception->getMessage() !== '') {
-                return $exception->getMessage();
+                return __($exception->getMessage());
             }
 
             return match ($status) {

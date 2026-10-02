@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -58,6 +59,21 @@ class LoginRequest extends FormRequest
 
         // If successful, clear the attempts
         RateLimiter::clear($this->throttleKey());
+
+        if (! $user->hasVerifiedEmail()) {
+            throw new HttpResponseException(
+                response()->json([
+                    'errors' => [
+                        [
+                            'status' => '403',
+                            'code' => 'email_not_verified',
+                            'title' => __('http-statuses.403'),
+                            'detail' => __('verification.not_verified'),
+                        ],
+                    ],
+                ], 403)
+            );
+        }
 
         return $user;
     }
