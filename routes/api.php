@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PermissionsController;
 use App\Http\Controllers\RolesController;
@@ -19,6 +20,11 @@ Route::controller(AuthController::class)->group(function () {
 Route::prefix('password')->controller(PasswordResetController::class)->group(function () {
     Route::post('forgot', 'sendResetCode')->middleware('throttle:5,1')->name('password.forgot');
     Route::post('reset', 'resetPassword')->middleware('throttle:5,1')->name('password.reset');
+});
+
+Route::prefix('email')->controller(EmailVerificationController::class)->group(function () {
+    Route::post('verify', 'verify')->middleware('throttle:5,1')->name('email.verify');
+    Route::post('resend', 'resend')->middleware('throttle:3,1')->name('email.resend');
 });
 
 // Protected routes
