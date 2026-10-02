@@ -109,9 +109,10 @@ class AuthController extends Controller
     }
 
     /**
-     * User Information
+     * User Profile
      *
-     * Returns the authenticated user's information along with their roles.
+     * Retrieves the authenticated user's account information.
+     * The response includes the user's details and their assigned roles.
      *
      * @throws UnauthorizedException
      */
@@ -131,7 +132,7 @@ class AuthController extends Controller
      *
      * @throws UnauthorizedException
      */
-    #[Response(status: HttpStatus::HTTP_OK, description: 'Token is valid.', type: 'array{meta: array{valid: bool, expires_at: string}}')]
+    #[Response(status: HttpStatus::HTTP_OK, description: 'Token is valid.', type: 'array{meta: array{valid: bool, expires_at: ?string}}')]
     #[Response(status: HttpStatus::HTTP_UNAUTHORIZED, description: 'Token is invalid or expired.', type: 'array{errors: array{status: string, title: string, detail: string}}')]
     public function validateToken(Request $request): JsonResponse
     {
@@ -143,9 +144,11 @@ class AuthController extends Controller
             );
         }
 
+        $token = $request->user()->currentAccessToken();
+
         return $this->successResponse([
             'valid' => true,
-            'expires_at' => $request->user()->currentAccessToken()->expires_at->toIso8601String(),
+            'expires_at' => $token?->expires_at?->toIso8601String(),
         ], HttpStatus::HTTP_OK);
     }
 

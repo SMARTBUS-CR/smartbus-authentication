@@ -241,6 +241,17 @@ describe('Protected Routes (Sanctum)', function () {
 
         $response->assertUnauthorized();
     });
+
+    it('validates a token without an expiration date', function () {
+        $user = User::factory()->create();
+        $token = $user->createToken('manual-token');
+
+        postJson(route('token.validate'), [], [
+            'Authorization' => "Bearer {$token->plainTextToken}",
+        ])->assertSuccessful()
+            ->assertJsonPath('meta.valid', true)
+            ->assertJsonPath('meta.expires_at', null);
+    });
 });
 
 describe('Internationalization (Locale)', function () {

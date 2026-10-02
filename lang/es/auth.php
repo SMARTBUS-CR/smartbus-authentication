@@ -7,4 +7,5 @@ return [
     'password' => 'La contraseña es incorrecta.',
     'throttle' => 'Demasiados intentos de acceso. Por favor intente nuevamente en :seconds segundos.',
     'logged_out' => 'Sesión cerrada correctamente',
+    'password_updated' => 'Contraseña actualizada correctamente.',
 ];
