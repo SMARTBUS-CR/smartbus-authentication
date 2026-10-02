@@ -122,23 +122,23 @@ describe('User Management and Authorization', function () {
             ->assertSuccessful();
         expect($user->fresh()->roles)->toHaveCount(1);
 
-        $permission = Permission::findByName('users.view', 'web');
+        $permission = Permission::findByName('View:User', 'web');
         $permission->assignRole(UserRole::Driver->value);
         $user->refresh();
 
         $this->getJson(route('users.permissions.index', ['user' => $user]))
             ->assertSuccessful()
-            ->assertJsonPath('data.attributes.effective.0', 'users.view');
+            ->assertJsonPath('data.attributes.effective.0', 'View:User');
 
-        $this->postJson(route('users.permissions.store', ['user' => $user, 'permission' => 'users.update']))
+        $this->postJson(route('users.permissions.store', ['user' => $user, 'permission' => 'Update:User']))
             ->assertSuccessful();
-        $this->deleteJson(route('users.permissions.destroy', ['user' => $user, 'permission' => 'users.update']))
+        $this->deleteJson(route('users.permissions.destroy', ['user' => $user, 'permission' => 'Update:User']))
             ->assertSuccessful();
     });
 
     it('does not allow deleting the last administrator', function () {
         $admin = User::factory()->withRole(UserRole::SuperAdmin)->create();
-        $target = User::factory()->withRole(UserRole::CompanyAdmin)->create();
+        $target = User::factory()->withRole(UserRole::Admin)->create();
         Sanctum::actingAs($admin);
 
         $this->deleteJson(route('users.destroy', ['user' => $target]))->assertSuccessful();
@@ -153,13 +153,13 @@ describe('Roles and Permissions Controllers', function () {
 
         $this->getJson(route('roles.index'))
             ->assertSuccessful()
-            ->assertJsonPath('data.0.attributes.value', UserRole::CompanyAdmin->value)
+            ->assertJsonPath('data.0.attributes.value', UserRole::Admin->value)
             ->assertJsonPath('data.3.attributes.value', UserRole::SuperAdmin->value);
 
         $this->getJson(route('permissions.index'))
             ->assertSuccessful()
-            ->assertJsonFragment(['name' => 'users.view'])
-            ->assertJsonFragment(['name' => 'users.assign-permissions']);
+            ->assertJsonFragment(['name' => 'View:User'])
+            ->assertJsonFragment(['name' => 'View:Dashboard']);
     });
 
     it('rejects catalog access for users without the required permission', function () {
@@ -187,13 +187,13 @@ describe('UserRoles Controller', function () {
         expect($user->fresh()->getRoleNames()->sort()->values()->all())
             ->toBe([UserRole::Driver->value, UserRole::Passenger->value]);
 
-        $this->postJson(route('users.roles.store', ['user' => $user, 'role' => UserRole::CompanyAdmin->value]))
+        $this->postJson(route('users.roles.store', ['user' => $user, 'role' => UserRole::Admin->value]))
             ->assertSuccessful();
         $this->deleteJson(route('users.roles.destroy', ['user' => $user, 'role' => UserRole::Driver->value]))
             ->assertSuccessful();
 
         expect($user->fresh()->hasRole(UserRole::Driver))->toBeFalse()
-            ->and($user->fresh()->hasRole(UserRole::CompanyAdmin))->toBeTrue();
+            ->and($user->fresh()->hasRole(UserRole::Admin))->toBeTrue();
     });
 
     it('rejects an unknown role and protects self administrator revocation', function () {
@@ -211,20 +211,20 @@ describe('UserPermissions Controller', function () {
     it('returns direct and effective permissions and synchronizes direct permissions', function () {
         $admin = User::factory()->withRole(UserRole::SuperAdmin)->create();
         $user = User::factory()->withRole(UserRole::Driver)->create();
-        $rolePermission = Permission::findByName('users.view', 'web');
+        $rolePermission = Permission::findByName('View:User', 'web');
         $rolePermission->assignRole(UserRole::Driver->value);
         Sanctum::actingAs($admin);
 
         $this->getJson(route('users.permissions.index', ['user' => $user]))
             ->assertSuccessful()
             ->assertJsonPath('data.attributes.direct', [])
-            ->assertJsonPath('data.attributes.effective.0', 'users.view');
+            ->assertJsonPath('data.attributes.effective.0', 'View:User');
 
         $this->putJson(route('users.permissions.update', ['user' => $user]), [
-            'permissions' => ['users.update'],
+            'permissions' => ['Update:User'],
         ])->assertSuccessful();
 
-        expect($user->fresh()->getDirectPermissions()->pluck('name')->all())->toBe(['users.update']);
+        expect($user->fresh()->getDirectPermissions()->pluck('name')->all())->toBe(['Update:User']);
     });
 
     it('assigns permissions idempotently and revokes direct permissions', function () {
@@ -232,12 +232,12 @@ describe('UserPermissions Controller', function () {
         $user = User::factory()->create();
         Sanctum::actingAs($admin);
 
-        $route = route('users.permissions.store', ['user' => $user, 'permission' => 'users.update']);
+        $route = route('users.permissions.store', ['user' => $user, 'permission' => 'Update:User']);
         $this->postJson($route)->assertSuccessful();
         $this->postJson($route)->assertSuccessful();
         expect($user->fresh()->getDirectPermissions())->toHaveCount(1);
 
-        $this->deleteJson(route('users.permissions.destroy', ['user' => $user, 'permission' => 'users.update']))
+        $this->deleteJson(route('users.permissions.destroy', ['user' => $user, 'permission' => 'Update:User']))
             ->assertSuccessful();
         expect($user->fresh()->getDirectPermissions())->toBeEmpty();
     });

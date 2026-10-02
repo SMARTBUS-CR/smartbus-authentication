@@ -18,7 +18,7 @@ beforeEach(function () {
     // Initial setup: Create the necessary role before each test
     Role::firstOrCreate(['name' => UserRole::PASSENGER, 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => UserRole::SUPER_ADMIN, 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => UserRole::COMPANY_ADMIN, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRole::ADMIN, 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => UserRole::DRIVER, 'guard_name' => 'web']);
 });
 
@@ -311,7 +311,7 @@ describe('Tokens Expiration by Role', function () {
             'email' => 'admin_exp@smartbus.com',
             'password' => bcrypt('password123'),
         ]);
-        $user->assignRole(UserRole::COMPANY_ADMIN);
+        $user->assignRole(UserRole::ADMIN);
 
         postJson(route('login'), [
             'email' => 'admin_exp@smartbus.com',

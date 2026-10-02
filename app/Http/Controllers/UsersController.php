@@ -152,7 +152,7 @@ class UsersController extends Controller implements HasMiddleware
             return $this->errorResponse('You cannot delete your own user.', 'Conflict', HttpStatus::HTTP_CONFLICT);
         }
 
-        if ($this->isAdministrator($user) && User::role([UserRole::SuperAdmin->value, UserRole::CompanyAdmin->value])->count() <= 1) {
+        if ($this->isAdministrator($user) && User::role([UserRole::SuperAdmin->value, UserRole::Admin->value])->count() <= 1) {
             return $this->errorResponse('The last administrator cannot be deleted.', 'Conflict', HttpStatus::HTTP_CONFLICT);
         }
 
@@ -191,6 +191,6 @@ class UsersController extends Controller implements HasMiddleware
      */
     private function isAdministrator(User $user): bool
     {
-        return $user->hasAnyRole([UserRole::SuperAdmin->value, UserRole::CompanyAdmin->value]);
+        return $user->hasAnyRole([UserRole::SuperAdmin->value, UserRole::Admin->value]);
     }
 }

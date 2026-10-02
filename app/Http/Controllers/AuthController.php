@@ -160,7 +160,7 @@ class AuthController extends Controller
     {
         return match (true) {
             $user->hasRole(UserRole::SUPER_ADMIN) => now()->addHours(2),
-            $user->hasRole(UserRole::COMPANY_ADMIN) => now()->addHours(8),
+            $user->hasRole(UserRole::ADMIN) => now()->addHours(8),
             $user->hasRole(UserRole::DRIVER) => now()->addHours(14),
             default => now()->addDays(30),
         };

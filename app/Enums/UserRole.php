@@ -5,13 +5,13 @@ namespace App\Enums;
 enum UserRole: string
 {
     case SuperAdmin = 'super-admin';
-    case CompanyAdmin = 'company-admin';
+    case Admin = 'admin';
     case Driver = 'driver';
     case Passenger = 'passenger';
 
     public const SUPER_ADMIN = self::SuperAdmin;
 
-    public const COMPANY_ADMIN = self::CompanyAdmin;
+    public const ADMIN = self::Admin;
 
     public const DRIVER = self::Driver;
 
@@ -20,10 +20,10 @@ enum UserRole: string
     public function label(): string
     {
         return match ($this) {
-            self::SuperAdmin => 'Super Admin',
-            self::CompanyAdmin => 'Administrador',
-            self::Driver => 'Conductor',
-            self::Passenger => 'Pasajero',
+            self::SuperAdmin => __('Super Admin'),
+            self::Admin => __('Administrator'),
+            self::Driver => __('Driver'),
+            self::Passenger => __('Passenger'),
         };
     }
 }
