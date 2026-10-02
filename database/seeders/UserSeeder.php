@@ -21,8 +21,8 @@ class UserSeeder extends Seeder
         $users = [
             ['Super Admin', 'admin@superadmin.com', 'superadmin123', UserRole::SuperAdmin],
             ['Company Admin', 'admin@company.com', 'companyadmin123', null],
-            ['Driver User', 'user@driver.com', 'driver123', null],
-            ['Passenger User', 'user@passenger.com', 'passenger123', null],
+            ['Driver User', 'user@driver.com', 'driver123', UserRole::Driver],
+            ['Passenger User', 'user@passenger.com', 'passenger123', UserRole::Passenger],
         ];
 
         foreach ($users as [$name, $email, $password, $role]) {
@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
             ]);
 
-            if ($role === UserRole::SuperAdmin) {
+            if ($role) {
                 $user->syncRoles([$role->value]);
             }
         }
