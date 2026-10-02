@@ -90,6 +90,7 @@ class UsersController extends Controller implements HasMiddleware
             'email' => $data['email'],
             'password' => $data['password'],
         ]);
+        $user->markEmailAsVerified();
         $user->syncRoles($roles);
 
         return UserResource::make($user->load('roles'));

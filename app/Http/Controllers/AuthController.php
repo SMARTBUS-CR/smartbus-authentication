@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Mail\VerifyEmailCode;
 use App\Models\User;
 use App\Traits\ApiResponser;
 use Carbon\Carbon;
@@ -13,7 +14,9 @@ use Dedoc\Scramble\Attributes\Group;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\UnauthorizedException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response as HttpStatus;
@@ -27,11 +30,12 @@ class AuthController extends Controller
      * Register Passenger
      *
      * Registers a new passenger user in the system.
-     * The user will be assigned the `passenger` role and an access token will be generated for them.
+     * A 6-digit verification code will be sent to the user's email.
+     * The user must verify their email before they can log in.
      *
      * @throws ValidationException
      */
-    #[Response(status: HttpStatus::HTTP_CREATED, description: 'User registered successfully.')]
+    #[Response(status: HttpStatus::HTTP_CREATED, description: 'User registered successfully. A verification code has been sent.')]
     public function registerPassenger(RegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -44,16 +48,24 @@ class AuthController extends Controller
 
         $user->assignRole(UserRole::PASSENGER);
 
-        $expiresAt = $this->getTokenExpirationForUser($user);
-        $deviceName = $request->header('User-Agent', 'auth_token');
-        $token = $user->createToken($deviceName, ['*'], $expiresAt)->plainTextToken;
+        $code = (string) random_int(100000, 999999);
+
+        DB::table('email_verification_codes')->updateOrInsert(
+            ['email' => $user->email],
+            [
+                'code' => Hash::make($code),
+                'attempts' => 0,
+                'created_at' => now(),
+            ]
+        );
+
+        Mail::to($user->email)->send(new VerifyEmailCode($code, $user->name));
 
         return UserResource::make($user)
             ->additional([
                 'meta' => [
-                    'access_token' => $token,
-                    'token_type' => 'Bearer',
-                    'expires_at' => $expiresAt->toIso8601String(),
+                    'verification_required' => true,
+                    'message' => __('verification.code_sent'),
                 ],
             ])
             ->response()
