@@ -33,22 +33,59 @@ Este repositorio corresponde al **Servicio de Autenticación** del proyecto, enc
     *   `PostgreSQL` + `PostGIS`: Base de datos transaccional con extensiones espaciales para operaciones logísticas complejas.
 *   **Gestión de Roles (`spatie/laravel-permission`):**
     *   `super-admin`: Control gubernamental y acceso total.
-    *   `company-admin`: Dueños de empresas transportistas.
+    *   `admin`: Administración de usuarios, roles y permisos.
     *   `driver`: Conductores operativos.
     *   `passenger`: Pasajeros y usuarios finales.
-*   **Arquitectura Multi-inquilino (Multitenancy):** Aislamiento lógico gestionado por Filament para vincular cada `company-admin` estrictamente a su flotilla.
+*   **Arquitectura Multi-inquilino (Multitenancy):** Aislamiento lógico gestionado por Filament para vincular cada `admin` estrictamente a su flotilla.
 
 ### Seguridad, Autenticación y API
-*   **Gestión de Sesiones Seguras (`laravel/sanctum`):** Tokens con expiración dinámica jerárquica (Ej: Conductores 2h, Pasajeros 30 días).
+*   **Gestión de Sesiones Seguras (`laravel/sanctum`):** Tokens con expiración dinámica por rol (Conductores 14h, Administradores 2-8h y Pasajeros 30 días).
 *   **Defensa y Recuperación de Cuentas:**
     *   *Rate Limiting* estricto para mitigar ataques de fuerza bruta.
     *   Flujo seguro de recuperación mediante **OTP** (códigos de 6 dígitos enviados por correo, con validez de 15 minutos).
+    *   Cambio de contraseña para pasajeros con confirmación de la contraseña actual y revocación de sus otros tokens.
 *   **Documentación Interactiva (`dedoc/scramble`):** Especificación OpenAPI generada dinámicamente y siempre actualizada.
 
 ### Calidad e Internacionalización
 *   **Soporte Bilingüe (i18n):** Middleware personalizado que interpreta el header `Accept-Language` para adaptar los mensajes, validaciones y respuestas (Español / Inglés).
 *   **Pruebas Exhaustivas (`pestphp/pest`):** Suite de testing que abarca verificación de rutas protegidas, mocks de envío de correos, aserciones avanzadas y manipulación temporal (`freezeTime`).
 *   **Estandarización y Clean Code (`laravel/pint`):** Garantía de uniformidad y calidad en el código fuente del equipo de desarrollo.
+
+## API Principal
+
+Todas las rutas están bajo el prefijo `/api`. Las rutas protegidas requieren un token Sanctum en el encabezado `Authorization: Bearer <token>` y, actualmente, también pasan por el middleware `verified`.
+
+### Rutas públicas
+
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| `POST` | `/api/register/passenger` | Registra un pasajero. |
+| `POST` | `/api/login` | Inicia sesión y genera un token. Límite: 5 solicitudes por minuto. |
+| `POST` | `/api/password/forgot` | Solicita un código OTP de recuperación. |
+| `POST` | `/api/password/reset` | Restablece la contraseña con un código OTP. |
+
+### Cuenta del pasajero
+
+Estas rutas siempre operan sobre el propietario del token; no reciben un identificador de usuario y no sustituyen el endpoint administrativo `PATCH /api/users/{user}`.
+
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| `PATCH` | `/api/user` | Actualiza el nombre y, opcionalmente, el correo del pasajero. Cambiar el correo requiere `current_password`. Límite: 5 solicitudes por minuto. |
+| `PUT` | `/api/user/password` | Cambia la contraseña con `current_password`, `password` y `password_confirmation`. Mantiene el token actual y revoca los demás. Límite: 5 solicitudes por minuto. |
+
+Los campos `roles`, `permissions`, `password` e `id` enviados a `PATCH /api/user` se ignoran. Los errores de validación se devuelven en formato JSON:API con `source.pointer` y mensajes disponibles en inglés y español mediante `Accept-Language`.
+
+### Rutas protegidas principales
+
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| `GET` | `/api/user` | Obtiene el usuario autenticado; admite `?include=roles`. |
+| `POST` | `/api/token/validate` | Valida el token actual. `expires_at` puede ser `null` para tokens sin expiración. |
+| `POST` | `/api/logout` | Revoca el token actual. |
+
+### Verificación de correo
+
+El modelo `User` implementa `MustVerifyEmail` y las rutas protegidas usan `verified`. El registro y el cambio de correo actualmente dejan el usuario sin verificación (`email_verified_at = null`), pero el flujo OTP de verificación de correo todavía debe implementarse antes de habilitar esta experiencia en producción.
 
 ---
 
@@ -75,7 +112,23 @@ npm install
 # 3. Configurar entorno
 cp .env.example .env
 php artisan key:generate
+php artisan migrate
 
-# 4. Levantar entorno local
+# 4. Construir los assets frontend
+npm run build
+
+# 5. Levantar entorno local (servidor, cola y Vite)
 composer run dev
+```
+
+El entorno local usa SQLite por defecto y el mailer `log`. Para ejecutar la suite:
+
+```bash
+php artisan test --compact
+```
+
+Antes de enviar cambios PHP, aplica el formato del proyecto:
+
+```bash
+vendor/bin/pint --dirty
 ```
