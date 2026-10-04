@@ -143,8 +143,9 @@ class AuthController extends Controller
      *
      * @throws UnauthorizedException
      */
-    #[Response(status: HttpStatus::HTTP_OK, description: 'Token is valid.', type: 'array{meta: array{valid: bool, expires_at: string}}')]
+    #[Response(status: HttpStatus::HTTP_OK, description: 'Token is valid.', type: 'array{meta: array{valid: bool, expires_at: string|null}}')]
     #[Response(status: HttpStatus::HTTP_UNAUTHORIZED, description: 'Token is invalid or expired.', type: 'array{errors: array{status: string, title: string, detail: string}}')]
+    #[Response(status: HttpStatus::HTTP_FORBIDDEN, description: 'The authenticated user has not verified their email.', type: 'array{errors: array{status: string, title: string, detail: string}}')]
     public function validateToken(Request $request): JsonResponse
     {
         if (! $request->user()) {
@@ -157,7 +158,7 @@ class AuthController extends Controller
 
         return $this->successResponse([
             'valid' => true,
-            'expires_at' => $request->user()->currentAccessToken()->expires_at->toIso8601String(),
+            'expires_at' => $request->user()->currentAccessToken()->expires_at?->toIso8601String(),
         ], HttpStatus::HTTP_OK);
     }
 
