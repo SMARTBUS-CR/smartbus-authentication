@@ -121,9 +121,10 @@ class AuthController extends Controller
     }
 
     /**
-     * User Information
+     * User Profile
      *
-     * Returns the authenticated user's information along with their roles.
+     * Retrieves the authenticated user's account information.
+     * The response includes the user's details and their assigned roles.
      *
      * @throws UnauthorizedException
      */
@@ -155,6 +156,8 @@ class AuthController extends Controller
                 HttpStatus::HTTP_UNAUTHORIZED
             );
         }
+
+        $token = $request->user()->currentAccessToken();
 
         return $this->successResponse([
             'valid' => true,

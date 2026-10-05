@@ -5,6 +5,7 @@ use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PermissionsController;
 use App\Http\Controllers\RolesController;
+use App\Http\Controllers\UserAccountController;
 use App\Http\Controllers\UserPermissionsController;
 use App\Http\Controllers\UserRolesController;
 use App\Http\Controllers\UsersController;
@@ -38,6 +39,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::post('token/validate', 'validateToken')->name('token.validate');
         Route::post('logout', 'logout')->name('logout');
         Route::get('user', 'user')->name('user');
+    });
+
+    // User Account Routes
+    Route::controller(UserAccountController::class)->group(function () {
+        Route::patch('user', 'update')->middleware('throttle:5,1')->name('user.update');
+        Route::put('user/password', 'updatePassword')->middleware('throttle:5,1')->name('user.password.update');
     });
 
     // User Management Routes
