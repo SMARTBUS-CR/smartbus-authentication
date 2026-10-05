@@ -22,9 +22,14 @@ Route::prefix('password')->controller(PasswordResetController::class)->group(fun
     Route::post('reset', 'resetPassword')->middleware('throttle:5,1')->name('password.reset');
 });
 
-Route::prefix('email')->controller(EmailVerificationController::class)->group(function () {
-    Route::post('verify', 'verify')->middleware('throttle:5,1')->name('email.verify');
-    Route::post('resend', 'resend')->middleware('throttle:3,1')->name('email.resend');
+Route::prefix('email')->group(function () {
+    Route::post('verify', [EmailVerificationController::class, 'verify'])
+        ->middleware('throttle:5,1')
+        ->name('email.verify');
+
+    Route::post('resend', [EmailVerificationController::class, 'resend'])
+        ->middleware('throttle:3,1')
+        ->name('email.resend');
 });
 
 // Protected routes
