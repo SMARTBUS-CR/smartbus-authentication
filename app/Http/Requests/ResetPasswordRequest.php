@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class ResetPasswordRequest extends FormRequest
@@ -24,7 +25,11 @@ class ResetPasswordRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'exists:users,email'],
+            'email' => [
+                'required',
+                'email',
+                Rule::exists('users', 'email')->withoutTrashed(),
+            ],
             'code' => ['required', 'string', 'size:6'],
             'password' => [
                 'required',
