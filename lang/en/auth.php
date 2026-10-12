@@ -18,5 +18,6 @@ return [
     'throttle' => 'Too many login attempts. Please try again in :seconds seconds.',
     'logged_out' => 'Logged out successfully',
     'password_updated' => 'Password updated successfully.',
+    'account_deleted' => 'Your account has been deleted successfully.',
 
 ];

@@ -13,7 +13,7 @@
 
 **SmartBus Global** es una plataforma integral de transporte público (B2G enfocada en Costa Rica), diseñada para la visualización de autobuses en tiempo real, predicción de llegadas (ETA) y gestión eficiente de rutas.
 
-Este repositorio corresponde al **Servicio de Autenticación** del proyecto, encargado de la gestión de usuarios, roles y permisos, así como de la seguridad y autenticación de las aplicaciones cliente.
+Este repositorio corresponde al **Servicio de Autenticación** del proyecto, encargado del registro de pasajeros, autenticación, verificación de correo, recuperación de contraseñas, gestión de sesiones y autogestión de cuentas de pasajeros.
 
 *   **Clientes Frontend:** Aplicación móvil unificada en Flutter que adapta su interfaz, estado y funcionalidades de forma dinámica (Conductor vs. Pasajero), y un Panel Web Administrativo (Filament).
 *   **Ecosistema de Microservicios:**
@@ -66,14 +66,56 @@ Todas las rutas están bajo el prefijo `/api`. Las rutas protegidas requieren un
 
 ### Cuenta del pasajero
 
-Estas rutas siempre operan sobre el propietario del token; no reciben un identificador de usuario y no sustituyen el endpoint administrativo `PATCH /api/users/{user}`.
+Estas rutas operan exclusivamente sobre el propietario del token autenticado y no reciben un identificador de usuario de destino.
 
-| Método | Ruta | Descripción |
-| --- | --- | --- |
-| `PATCH` | `/api/user` | Actualiza el nombre y, opcionalmente, el correo del pasajero. Cambiar el correo requiere `current_password`. Límite: 5 solicitudes por minuto. |
-| `PUT` | `/api/user/password` | Cambia la contraseña con `current_password`, `password` y `password_confirmation`. Mantiene el token actual y revoca los demás. Límite: 5 solicitudes por minuto. |
+| Método   | Ruta                 | Descripción                                                                                                                         |
+| -------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `PATCH`  | `/api/user`          | Actualiza el nombre o correo del pasajero. Cambiar el correo requiere `current_password` y reinicia la verificación del correo.     |
+| `PUT`    | `/api/user/password` | Cambia la contraseña. Requiere `current_password`, `password` y `password_confirmation`. Revoca todos los tokens excepto el actual. |
+| `DELETE` | `/api/user`          | Elimina lógicamente la cuenta del pasajero y revoca todos sus tokens, incluido el actual.                                           |
 
-Los campos `roles`, `permissions`, `password` e `id` enviados a `PATCH /api/user` se ignoran. Los errores de validación se devuelven en formato JSON:API con `source.pointer` y mensajes disponibles en inglés y español mediante `Accept-Language`.
+Estas rutas requieren autenticación con Sanctum y un correo verificado. Cada una tiene un límite de cinco solicitudes por minuto por cuenta autenticada.
+
+#### Eliminación de cuenta
+
+`DELETE /api/user` requiere un cuerpo JSON:
+
+```json
+{
+  "current_password": "TuContraseñaActual",
+  "confirm_deletion": true
+}
+```
+
+Solamente pueden utilizar este endpoint las cuentas con el rol `passenger` y sin roles adicionales. Se comprueban las asignaciones de roles en todas las compañías. Se rechazan administradores, superadministradores, conductores y cuentas con roles mixtos.
+
+Una solicitud exitosa devuelve `200 OK`. Con `Accept-Language: es`, la respuesta es:
+
+```json
+{
+  "meta": {
+    "message": "Tu cuenta ha sido eliminada correctamente."
+  }
+}
+```
+
+La eliminación de la cuenta y la revocación de tokens ocurren dentro de una misma transacción. Si la operación falla, ambos cambios se revierten.
+
+La implementación actual utiliza borrado lógico. Se conservan los datos personales, el UUID de la cuenta y las referencias históricas. Esto no constituye una eliminación definitiva ni una anonimización, y no se proporciona restauración automática de la cuenta.
+
+Las cuentas eliminadas no pueden iniciar sesión ni recuperar su contraseña. Sus direcciones de correo permanecen reservadas por las reglas de unicidad existentes.
+
+Los errores utilizan la estructura JSON:API existente:
+
+| Estado | Significado                                                                  |
+| ------ | ---------------------------------------------------------------------------- |
+| `401`  | Token ausente, inválido, expirado o revocado.                                |
+| `403`  | Correo sin verificar o cuenta que no pertenece exclusivamente a un pasajero. |
+| `422`  | Contraseña actual o confirmación de eliminación inválida.                    |
+| `429`  | Límite de solicitudes excedido.                                              |
+| `500`  | Fallo inesperado; la eliminación y la revocación de tokens se revierten.     |
+
+Los mensajes están disponibles en español e inglés mediante `Accept-Language`.
 
 ### Rutas protegidas principales
 
@@ -85,7 +127,7 @@ Los campos `roles`, `permissions`, `password` e `id` enviados a `PATCH /api/user
 
 ### Verificación de correo
 
-El modelo `User` implementa `MustVerifyEmail` y las rutas protegidas usan `verified`. El registro y el cambio de correo actualmente dejan el usuario sin verificación (`email_verified_at = null`), pero el flujo OTP de verificación de correo todavía debe implementarse antes de habilitar esta experiencia en producción.
+El modelo `User` implementa `MustVerifyEmail` y las rutas protegidas utilizan el middleware `verified`. El registro y los cambios de correo requieren verificar la dirección de correo. El flujo de verificación mediante OTP está disponible a través de `POST /api/email/verify` y `POST /api/email/resend`.
 
 ---
 

@@ -3,12 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\PasswordResetController;
-use App\Http\Controllers\PermissionsController;
-use App\Http\Controllers\RolesController;
 use App\Http\Controllers\UserAccountController;
-use App\Http\Controllers\UserPermissionsController;
-use App\Http\Controllers\UserRolesController;
-use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
 // Auth Routes (Public)
@@ -45,34 +40,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::controller(UserAccountController::class)->group(function () {
         Route::patch('user', 'update')->middleware('throttle:5,1')->name('user.update');
         Route::put('user/password', 'updatePassword')->middleware('throttle:5,1')->name('user.password.update');
-    });
-
-    // User Management Routes
-    Route::controller(UsersController::class)->group(function () {
-        Route::get('users', 'index')->name('users.index');
-        Route::post('users', 'store')->name('users.store');
-        Route::get('users/{user}', 'show')->name('users.show');
-        Route::patch('users/{user}', 'update')->name('users.update');
-        Route::delete('users/{user}', 'destroy')->name('users.destroy');
-    });
-
-    // Roles and Permissions Routes
-    Route::get('roles', [RolesController::class, 'index'])->name('roles.index');
-    Route::get('permissions', [PermissionsController::class, 'index'])->name('permissions.index');
-
-    // User Roles Routes
-    Route::controller(UserRolesController::class)->group(function () {
-        Route::get('users/{user}/roles', 'index')->name('users.roles.index');
-        Route::put('users/{user}/roles', 'update')->name('users.roles.update');
-        Route::post('users/{user}/roles/{role}', 'store')->name('users.roles.store');
-        Route::delete('users/{user}/roles/{role}', 'destroy')->name('users.roles.destroy');
-    });
-
-    // User Permissions Routes
-    Route::controller(UserPermissionsController::class)->group(function () {
-        Route::get('users/{user}/permissions', 'index')->name('users.permissions.index');
-        Route::put('users/{user}/permissions', 'update')->name('users.permissions.update');
-        Route::post('users/{user}/permissions/{permission}', 'store')->name('users.permissions.store');
-        Route::delete('users/{user}/permissions/{permission}', 'destroy')->name('users.permissions.destroy');
+        Route::delete('user', 'destroy')->middleware('throttle:5,1')->name('user.destroy');
     });
 });
