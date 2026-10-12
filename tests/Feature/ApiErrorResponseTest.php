@@ -19,7 +19,7 @@ describe('API Error Response', function () {
         $admin = User::factory()->withRole(UserRole::SuperAdmin)->create();
         Sanctum::actingAs($admin);
 
-        $this->getJson(route('users.show', ['user' => 999999]))
+        $this->getJson('/api/non-existent-endpoint')
             ->assertNotFound()
             ->assertJsonStructure(['errors' => [['status', 'title', 'detail']]])
             ->assertJsonPath('errors.0.status', '404')
