@@ -43,7 +43,9 @@ describe('Passenger Profile', function () {
 
         expect($passenger->fresh()->hasRole(UserRole::Passenger))->toBeTrue()
             ->and($passenger->fresh()->hasRole(UserRole::Admin))->toBeFalse()
-            ->and($otherUser->fresh()->name)->toBe('Other User');
+            ->and($otherUser->fresh()->name)->toBe('Other User')
+            ->and($passenger->fresh()->email_verified_at)->toBeNull()
+            ->and($passenger->fresh()->hasVerifiedEmail())->toBeFalse();
     });
 
     it('returns 422 when email changes without the current password', function () {
