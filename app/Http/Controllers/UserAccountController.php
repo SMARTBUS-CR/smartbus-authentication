@@ -41,7 +41,7 @@ class UserAccountController extends Controller
             $data['email_verified_at'] = null;
         }
 
-        $user->update($data);
+        $user->forceFill($data)->save();
 
         return UserResource::make($user->load('roles'));
     }
