@@ -19,7 +19,7 @@
     "skills": [
         "infer-conventions",
         "laravel-best-practices",
-        "pest-testing",
+        "testing-best-practices",
         "tailwindcss-development",
         "laravel-permission-development",
         "laravel-query-builder",

@@ -13,7 +13,7 @@
 
 **SmartBus Global** es una plataforma integral de transporte público (B2G enfocada en Costa Rica), diseñada para la visualización de autobuses en tiempo real, predicción de llegadas (ETA) y gestión eficiente de rutas.
 
-Este repositorio corresponde al **Servicio de Autenticación** del proyecto, encargado de la gestión de usuarios, roles y permisos, así como de la seguridad y autenticación de las aplicaciones cliente.
+Este repositorio corresponde al **Servicio de Autenticación** del proyecto, encargado del registro de pasajeros, autenticación, verificación de correo, recuperación de contraseñas, gestión de sesiones y autogestión de cuentas de pasajeros.
 
 *   **Clientes Frontend:** Aplicación móvil unificada en Flutter que adapta su interfaz, estado y funcionalidades de forma dinámica (Conductor vs. Pasajero), y un Panel Web Administrativo (Filament).
 *   **Ecosistema de Microservicios:**
@@ -33,22 +33,101 @@ Este repositorio corresponde al **Servicio de Autenticación** del proyecto, enc
     *   `PostgreSQL` + `PostGIS`: Base de datos transaccional con extensiones espaciales para operaciones logísticas complejas.
 *   **Gestión de Roles (`spatie/laravel-permission`):**
     *   `super-admin`: Control gubernamental y acceso total.
-    *   `company-admin`: Dueños de empresas transportistas.
+    *   `admin`: Administración de usuarios, roles y permisos.
     *   `driver`: Conductores operativos.
     *   `passenger`: Pasajeros y usuarios finales.
-*   **Arquitectura Multi-inquilino (Multitenancy):** Aislamiento lógico gestionado por Filament para vincular cada `company-admin` estrictamente a su flotilla.
+*   **Arquitectura Multi-inquilino (Multitenancy):** Aislamiento lógico gestionado por Filament para vincular cada `admin` estrictamente a su flotilla.
 
 ### Seguridad, Autenticación y API
-*   **Gestión de Sesiones Seguras (`laravel/sanctum`):** Tokens con expiración dinámica jerárquica (Ej: Conductores 2h, Pasajeros 30 días).
+*   **Gestión de Sesiones Seguras (`laravel/sanctum`):** Tokens con expiración dinámica por rol (Conductores 14h, Administradores 2-8h y Pasajeros 30 días).
 *   **Defensa y Recuperación de Cuentas:**
     *   *Rate Limiting* estricto para mitigar ataques de fuerza bruta.
     *   Flujo seguro de recuperación mediante **OTP** (códigos de 6 dígitos enviados por correo, con validez de 15 minutos).
+    *   Cambio de contraseña para pasajeros con confirmación de la contraseña actual y revocación de sus otros tokens.
 *   **Documentación Interactiva (`dedoc/scramble`):** Especificación OpenAPI generada dinámicamente y siempre actualizada.
 
 ### Calidad e Internacionalización
 *   **Soporte Bilingüe (i18n):** Middleware personalizado que interpreta el header `Accept-Language` para adaptar los mensajes, validaciones y respuestas (Español / Inglés).
 *   **Pruebas Exhaustivas (`pestphp/pest`):** Suite de testing que abarca verificación de rutas protegidas, mocks de envío de correos, aserciones avanzadas y manipulación temporal (`freezeTime`).
 *   **Estandarización y Clean Code (`laravel/pint`):** Garantía de uniformidad y calidad en el código fuente del equipo de desarrollo.
+
+## API Principal
+
+Todas las rutas están bajo el prefijo `/api`. Las rutas protegidas requieren un token Sanctum en el encabezado `Authorization: Bearer <token>` y, actualmente, también pasan por el middleware `verified`.
+
+### Rutas públicas
+
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| `POST` | `/api/register/passenger` | Registra un pasajero. |
+| `POST` | `/api/login` | Inicia sesión y genera un token. Límite: 5 solicitudes por minuto. |
+| `POST` | `/api/password/forgot` | Solicita un código OTP de recuperación. |
+| `POST` | `/api/password/reset` | Restablece la contraseña con un código OTP. |
+
+### Cuenta del pasajero
+
+Estas rutas operan exclusivamente sobre el propietario del token autenticado y no reciben un identificador de usuario de destino.
+
+| Método   | Ruta                 | Descripción                                                                                                                         |
+| -------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `PATCH`  | `/api/user`          | Actualiza el nombre o correo del pasajero. Cambiar el correo requiere `current_password` y reinicia la verificación del correo.     |
+| `PUT`    | `/api/user/password` | Cambia la contraseña. Requiere `current_password`, `password` y `password_confirmation`. Revoca todos los tokens excepto el actual. |
+| `DELETE` | `/api/user`          | Elimina lógicamente la cuenta del pasajero y revoca todos sus tokens, incluido el actual.                                           |
+
+Estas rutas requieren autenticación con Sanctum y un correo verificado. Cada una tiene un límite de cinco solicitudes por minuto por cuenta autenticada.
+
+#### Eliminación de cuenta
+
+`DELETE /api/user` requiere un cuerpo JSON:
+
+```json
+{
+  "current_password": "TuContraseñaActual",
+  "confirm_deletion": true
+}
+```
+
+Solamente pueden utilizar este endpoint las cuentas con el rol `passenger` y sin roles adicionales. Se comprueban las asignaciones de roles en todas las compañías. Se rechazan administradores, superadministradores, conductores y cuentas con roles mixtos.
+
+Una solicitud exitosa devuelve `200 OK`. Con `Accept-Language: es`, la respuesta es:
+
+```json
+{
+  "meta": {
+    "message": "Tu cuenta ha sido eliminada correctamente."
+  }
+}
+```
+
+La eliminación de la cuenta y la revocación de tokens ocurren dentro de una misma transacción. Si la operación falla, ambos cambios se revierten.
+
+La implementación actual utiliza borrado lógico. Se conservan los datos personales, el UUID de la cuenta y las referencias históricas. Esto no constituye una eliminación definitiva ni una anonimización, y no se proporciona restauración automática de la cuenta.
+
+Las cuentas eliminadas no pueden iniciar sesión ni recuperar su contraseña. Sus direcciones de correo permanecen reservadas por las reglas de unicidad existentes.
+
+Los errores utilizan la estructura JSON:API existente:
+
+| Estado | Significado                                                                  |
+| ------ | ---------------------------------------------------------------------------- |
+| `401`  | Token ausente, inválido, expirado o revocado.                                |
+| `403`  | Correo sin verificar o cuenta que no pertenece exclusivamente a un pasajero. |
+| `422`  | Contraseña actual o confirmación de eliminación inválida.                    |
+| `429`  | Límite de solicitudes excedido.                                              |
+| `500`  | Fallo inesperado; la eliminación y la revocación de tokens se revierten.     |
+
+Los mensajes están disponibles en español e inglés mediante `Accept-Language`.
+
+### Rutas protegidas principales
+
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| `GET` | `/api/user` | Obtiene el usuario autenticado; admite `?include=roles`. |
+| `POST` | `/api/token/validate` | Valida el token actual. `expires_at` puede ser `null` para tokens sin expiración. |
+| `POST` | `/api/logout` | Revoca el token actual. |
+
+### Verificación de correo
+
+El modelo `User` implementa `MustVerifyEmail` y las rutas protegidas utilizan el middleware `verified`. El registro y los cambios de correo requieren verificar la dirección de correo. El flujo de verificación mediante OTP está disponible a través de `POST /api/email/verify` y `POST /api/email/resend`.
 
 ---
 
@@ -75,7 +154,23 @@ npm install
 # 3. Configurar entorno
 cp .env.example .env
 php artisan key:generate
+php artisan migrate
 
-# 4. Levantar entorno local
+# 4. Construir los assets frontend
+npm run build
+
+# 5. Levantar entorno local (servidor, cola y Vite)
 composer run dev
+```
+
+El entorno local usa SQLite por defecto y el mailer `log`. Para ejecutar la suite:
+
+```bash
+php artisan test --compact
+```
+
+Antes de enviar cambios PHP, aplica el formato del proyecto:
+
+```bash
+vendor/bin/pint --dirty
 ```

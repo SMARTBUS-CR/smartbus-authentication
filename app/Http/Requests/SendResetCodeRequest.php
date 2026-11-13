@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SendResetCodeRequest extends FormRequest
 {
@@ -23,7 +24,11 @@ class SendResetCodeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'exists:users,email'],
+            'email' => [
+                'required',
+                'email',
+                Rule::exists('users', 'email')->withoutTrashed(),
+            ],
         ];
     }
 }

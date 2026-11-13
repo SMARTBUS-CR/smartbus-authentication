@@ -19,8 +19,8 @@ describe('RoleResource & UserResource (JSON:API)', function () {
         $resolved = $resource->resolve();
 
         expect((array) $resolved['data']['attributes'])->toBe([
-            'value' => 'super-admin',
-            'label' => 'Super Admin',
+            'value' => UserRole::SUPER_ADMIN->value,
+            'label' => UserRole::SUPER_ADMIN->label(),
         ]);
     });
 
@@ -41,8 +41,8 @@ describe('RoleResource & UserResource (JSON:API)', function () {
             ->and($response['data']['attributes']['email'])->toBe($user->email)
             ->and($response['included'][0]['type'])->toBe('roles')
             ->and($response['included'][0]['attributes'])->toBe([
-                'value' => 'super-admin',
-                'label' => 'Super Admin',
+                'value' => UserRole::SUPER_ADMIN->value,
+                'label' => UserRole::SUPER_ADMIN->label(),
             ]);
     });
 });

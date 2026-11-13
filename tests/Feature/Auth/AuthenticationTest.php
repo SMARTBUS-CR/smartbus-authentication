@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 
@@ -18,13 +19,15 @@ beforeEach(function () {
     // Initial setup: Create the necessary role before each test
     Role::firstOrCreate(['name' => UserRole::PASSENGER, 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => UserRole::SUPER_ADMIN, 'guard_name' => 'web']);
-    Role::firstOrCreate(['name' => UserRole::COMPANY_ADMIN, 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => UserRole::ADMIN, 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => UserRole::DRIVER, 'guard_name' => 'web']);
 });
 
 describe('Passenger Registration', function () {
 
     it('allows a new passenger to register with valid data', function () {
+        Mail::fake();
+
         $data = [
             'name' => 'Pasajero de Prueba',
             'email' => 'pasajero@smartbus.com',
@@ -41,11 +44,15 @@ describe('Passenger Registration', function () {
                     'id',
                     'attributes' => ['name', 'email', 'permissions'],
                 ],
-                'meta' => ['access_token', 'token_type', 'expires_at'],
+                'meta' => ['verification_required', 'message'],
             ])
             ->assertJsonPath('data.type', 'users')
             ->assertJsonPath('data.attributes.name', 'Pasajero de Prueba')
-            ->assertJsonPath('data.attributes.email', 'pasajero@smartbus.com');
+            ->assertJsonPath('data.attributes.email', 'pasajero@smartbus.com')
+            ->assertJsonPath('data.attributes.email_verified', false)
+            ->assertJsonPath('meta.verification_required', true);
+        $response->assertJsonMissingPath('data.attributes.password');
+        $response->assertJsonMissingPath('meta.access_token');
 
         // Check that the user was saved in the database
         assertDatabaseHas('users', [
@@ -65,6 +72,46 @@ describe('Passenger Registration', function () {
             ->assertJsonPath('errors.1.source.pointer', '/data/attributes/email')
             ->assertJsonPath('errors.2.source.pointer', '/data/attributes/password');
     });
+
+    it('rejects registration when email is already taken', function () {
+        User::factory()->create(['email' => 'pasajero@smartbus.com']);
+
+        $data = [
+            'name' => 'Otro Pasajero',
+            'email' => 'pasajero@smartbus.com',
+            'password' => 'N7v!qL2#rX9@kP4',
+            'password_confirmation' => 'N7v!qL2#rX9@kP4',
+        ];
+
+        $response = postJson(route('register.passenger'), $data);
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('errors.0.source.pointer', '/data/attributes/email');
+    });
+
+    it('rejects registration when password fails validation rules or does not match confirmation', function () {
+        $invalidData = [
+            'name' => 'Pasajero Pruebas',
+            'email' => 'nuevo@smartbus.com',
+            'password' => '12345',
+            'password_confirmation' => '12345',
+        ];
+
+        postJson(route('register.passenger'), $invalidData)
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.0.source.pointer', '/data/attributes/password');
+
+        $mismatchedData = [
+            'name' => 'Pasajero Pruebas',
+            'email' => 'nuevo2@smartbus.com',
+            'password' => 'N7v!qL2#rX9@kP4',
+            'password_confirmation' => 'Diferente123!',
+        ];
+
+        postJson(route('register.passenger'), $mismatchedData)
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.0.source.pointer', '/data/attributes/password');
+    });
 });
 
 describe('Login and Logout', function () {
@@ -73,6 +120,7 @@ describe('Login and Logout', function () {
         $user = User::factory()->create([
             'email' => 'login@smartbus.com',
             'password' => bcrypt('password123'),
+            'email_verified_at' => now(),
         ]);
         $user->assignRole(UserRole::PASSENGER);
 
@@ -142,6 +190,7 @@ describe('Login and Logout', function () {
         $user = User::factory()->create([
             'email' => 'multidevice@smartbus.com',
             'password' => bcrypt('password123'),
+            'email_verified_at' => now(),
         ]);
         $user->assignRole(UserRole::PASSENGER);
 
@@ -200,6 +249,17 @@ describe('Protected Routes (Sanctum)', function () {
 
         $response->assertUnauthorized();
     });
+
+    it('validates a token without an expiration date', function () {
+        $user = User::factory()->create();
+        $token = $user->createToken('manual-token');
+
+        postJson(route('token.validate'), [], [
+            'Authorization' => "Bearer {$token->plainTextToken}",
+        ])->assertSuccessful()
+            ->assertJsonPath('meta.valid', true)
+            ->assertJsonPath('meta.expires_at', null);
+    });
 });
 
 describe('Internationalization (Locale)', function () {
@@ -231,6 +291,7 @@ describe('Tokens Expiration by Role', function () {
         $user = User::factory()->create([
             'email' => 'passenger_exp@smartbus.com',
             'password' => bcrypt('password123'),
+            'email_verified_at' => now(),
         ]);
         $user->assignRole(UserRole::PASSENGER);
 
@@ -251,6 +312,7 @@ describe('Tokens Expiration by Role', function () {
         $user = User::factory()->create([
             'email' => 'driver_exp@smartbus.com',
             'password' => bcrypt('password123'),
+            'email_verified_at' => now(),
         ]);
         $user->assignRole(UserRole::DRIVER);
 
@@ -269,8 +331,9 @@ describe('Tokens Expiration by Role', function () {
         $user = User::factory()->create([
             'email' => 'admin_exp@smartbus.com',
             'password' => bcrypt('password123'),
+            'email_verified_at' => now(),
         ]);
-        $user->assignRole(UserRole::COMPANY_ADMIN);
+        $user->assignRole(UserRole::ADMIN);
 
         postJson(route('login'), [
             'email' => 'admin_exp@smartbus.com',
@@ -287,6 +350,7 @@ describe('Tokens Expiration by Role', function () {
         $user = User::factory()->create([
             'email' => 'super_admin_exp@smartbus.com',
             'password' => bcrypt('password123'),
+            'email_verified_at' => now(),
         ]);
         $user->assignRole(UserRole::SUPER_ADMIN);
 

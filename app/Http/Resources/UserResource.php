@@ -17,6 +17,7 @@ class UserResource extends JsonApiResource
         return [
             'name' => $this->resource->name,
             'email' => $this->resource->email,
+            'email_verified' => (bool) $this->resource->email_verified_at,
 
             /**
              * User's permissions.

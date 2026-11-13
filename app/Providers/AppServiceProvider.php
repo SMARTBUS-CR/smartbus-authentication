@@ -9,6 +9,7 @@ use App\Models\User;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\Parameter;
+use Dedoc\Scramble\Support\Generator\RequestBodyObject;
 use Dedoc\Scramble\Support\Generator\Schema;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -67,6 +68,50 @@ class AppServiceProvider extends ServiceProvider
                             ->description('Language of the response. Supported values: en, es.')
                             ->setSchema(Schema::fromType((new StringType)->enum(['en', 'es'])->default('es'))),
                     ]);
+
+                    if ($operation->operationId !== 'user.destroy') {
+                        continue;
+                    }
+
+                    $bodyParameters = [];
+                    $remainingParameters = [];
+
+                    foreach ($operation->parameters as $parameter) {
+                        if (
+                            ! $parameter instanceof Parameter
+                            || ! in_array(
+                                $parameter->name,
+                                ['current_password', 'confirm_deletion'],
+                                true,
+                            )
+                        ) {
+                            $remainingParameters[] = $parameter;
+
+                            continue;
+                        }
+
+                        if ($parameter->name === 'current_password') {
+                            $parameter->schema->type->format('password');
+                        }
+
+                        if ($parameter->name === 'confirm_deletion') {
+                            // Values accepted by both the boolean and accepted validation rules.
+                            $parameter->schema->type->enum([true, 1, '1']);
+                        }
+
+                        $bodyParameters[] = $parameter;
+                    }
+
+                    $operation->parameters = $remainingParameters;
+
+                    $operation->addRequestBodyObject(
+                        RequestBodyObject::make()
+                            ->required()
+                            ->setContent(
+                                'application/json',
+                                Schema::createFromParameters($bodyParameters),
+                            ),
+                    );
                 }
             }
         });
